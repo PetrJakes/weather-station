@@ -10,9 +10,20 @@
 #    Version 1.3 - remove 300ms Bounce
 #    Version 2.0 - Update for WeatherPiArduino V2
 #    Version 3.0 - Removed Double Interrupts
-#
+#    Improved voltage reading in 
 
-# imports
+        # for some positions the wind vane returns very small voltage diferences 
+        # 112.5° => 0.321V
+        #                  voltage difference 0.088V
+        #  67.5° => 0.409V 
+        #                  voltage difference 0.045V
+        #  90.0° => 0.455V 
+        # because of that we have to measure very precisely 
+        # to achive this goal we recalculate voltage measured on voltage divider (wind vane)
+        # voltage, measured on wind vane voltage divider, is Vcc value dependent 
+        # higher Vcc means higher voltage measured on the wind vane voltage divider
+        # using referential Vcc voltage measured on AIN2 pin
+
 
 try:
     # Check for user imports
@@ -216,13 +227,6 @@ class SDL_Pi_WeatherRack:
         return direction
 
     def current_wind_direction_voltage(self):
-        # for some positions the wind vane returns very small voltage diferences 
-        # 112.5° => 0.321V voltage difference 0.088V comparing with voltage for 67.5°
-        #  67.5° => 0.409V voltage difference 0.045V comparing with voltage for 90.0°
-        #  90.0° => 0.455V 
-        # so we have to measure very precisely 
-        # to achive this goal we recalculate voltage measured on voltage divider (wind vane)
-        # using referential Vcc voltage measured on AIN2 pin
         if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:
             value = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane on WeatherPiArduino
             value1 = self.ads1015.readADCSingleEnded(0x02, self.gain, self.sps)  # AIN2 wired to Vcc - referential voltage
