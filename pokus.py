@@ -10,3 +10,4 @@ while True:
     
     mylcd.lcd_display_string("", 2)
     time.sleep(0.1)
+print "ahoj"
