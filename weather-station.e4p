@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2018-06-01, 19:55:07 -->
+<!-- Saved: 2018-06-01, 21:16:51 -->
 <!-- Copyright (C) 2018 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -13,6 +13,7 @@
   <Email>petr.jakes.tpc@gmail.com</Email>
   <Sources>
     <Source>bme280.py2</Source>
+    <Source>gitTest.py2</Source>
   </Sources>
   <Others>
     <Other>README.md</Other>
