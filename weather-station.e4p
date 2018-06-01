@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2018-06-01, 21:25:19 -->
+<!-- Saved: 2018-06-01, 21:48:21 -->
 <!-- Copyright (C) 2018 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -12,6 +12,8 @@
   <Author>Petr Jakeš</Author>
   <Email>petr.jakes.tpc@gmail.com</Email>
   <Sources>
+    <Source>README.md</Source>
+    <Source>SDL_Pi_WeatherRack.py</Source>
     <Source>bme280.py2</Source>
   </Sources>
   <Others>
