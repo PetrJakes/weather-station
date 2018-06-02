@@ -10,7 +10,9 @@
 #    Version 1.3 - remove 300ms Bounce
 #    Version 2.0 - Update for WeatherPiArduino V2
 #    Version 3.0 - Removed Double Interrupts
-#    Improved voltage reading in 
+#
+
+# imports
 
 try:
     # Check for user imports
@@ -52,7 +54,7 @@ WIND_FACTOR = 2.400 / SDL_INTERRUPT_CLICKS
 
 # Helper Functions
 def fuzzyCompare(compareValue, value):
-    VARYVALUE = 0.02
+    VARYVALUE = 0.1
     if value > compareValue * (1.0 - VARYVALUE) and value < compareValue * (1.0 + VARYVALUE):
         return True
     return False
@@ -61,52 +63,69 @@ def voltageToDegrees(value, defaultWindDirection):
     
     ADJUST3OR5 = 1.0 # For Vcc 5V, use 1.0.  For Vcc 3.3V use 0.66 (3.3/5 = 0.66)
 
-    if fuzzyCompare(3.837 * ADJUST3OR5, value):
+#    if fuzzyCompare(3.837 * ADJUST3OR5, value):
+#    if value > 0.2158187135 and value < 0.3604095318:
+    if value >= 3.639 and value <= 3.934:
         return 0.0
 
-    if fuzzyCompare(1.982 * ADJUST3OR5, value):
+#    if fuzzyCompare(1.982 * ADJUST3OR5, value):
+    if value >= 1.698 and value <= 2.112:
         return 22.5
 
-    if fuzzyCompare(2.253 * ADJUST3OR5, value):
+#    if fuzzyCompare(2.253 * ADJUST3OR5, value):
+    if value >= 2.122 and value <= 2.585:
         return 45
 
-    if fuzzyCompare(0.409 * ADJUST3OR5, value):
+#    if fuzzyCompare(0.409 * ADJUST3OR5, value):
+    if value >= 0.37 and value <= 0.427:
         return 67.5
 
-    if fuzzyCompare(0.455 * ADJUST3OR5, value):
+#    if fuzzyCompare(0.455 * ADJUST3OR5, value):
+    if value >= 0.437 and value <= 0.531:
         return 90.0
 
-    if fuzzyCompare(0.322 * ADJUST3OR5, value):
+#    if fuzzyCompare(0.322 * ADJUST3OR5, value):
+    if value >= 0.216 and value <= 0.36:    
         return 112.5
 
-    if fuzzyCompare(0.902 * ADJUST3OR5, value):
+#    if fuzzyCompare(0.902 * ADJUST3OR5, value):
+    if value >= 0.764 and value <= 1.043:
         return 135.0
-
-    if fuzzyCompare(0.617 * ADJUST3OR5, value):
+    
+#    if fuzzyCompare(0.617 * ADJUST3OR5, value):
+    if value >= 0.541 and value <= 0.754:
         return 157.5
 
-    if fuzzyCompare(1.403 * ADJUST3OR5, value):
+#    if fuzzyCompare(1.403 * ADJUST3OR5, value):
+    if value >= 1.303 and value <= 1.688:
         return 180
 
-    if fuzzyCompare(1.194 * ADJUST3OR5, value):
+#    if fuzzyCompare(1.194 * ADJUST3OR5, value):
+    if value >= 1.053 and value <= 1.293:
         return 202.5
 
-    if fuzzyCompare(3.077 * ADJUST3OR5, value):
+#    if fuzzyCompare(3.077 * ADJUST3OR5, value):
+    if value >= 3.007 and value <= 3.249:
         return 225
 
-    if fuzzyCompare(2.927 * ADJUST3OR5, value):
+#    if fuzzyCompare(2.927 * ADJUST3OR5, value):
+    if value >= 2.595 and value <= 2.997:
         return 247.5
 
-    if fuzzyCompare(4.615 * ADJUST3OR5, value):
+#    if fuzzyCompare(4.615 * ADJUST3OR5, value):
+    if value >= 4.479 and value <= 4.803:
         return 270.0
 
-    if fuzzyCompare(4.041 * ADJUST3OR5, value):
+#    if fuzzyCompare(4.041 * ADJUST3OR5, value):
+    if value >= 3.944 and value <= 4.182:
         return 292.5
 
-    if fuzzyCompare(4.332 * ADJUST3OR5, value): 
+#    if fuzzyCompare(4.332 * ADJUST3OR5, value): 
+    if value >= 4.192 and value <= 4.469:
         return 315.0
 
-    if fuzzyCompare(3.431 * ADJUST3OR5, value):
+#    if fuzzyCompare(3.431 * ADJUST3OR5, value):
+    if value >= 3.259 and value <= 3.629:
         return 337.5
 
     return defaultWindDirection  # return previous value if not found
@@ -209,19 +228,29 @@ class SDL_Pi_WeatherRack:
 
     # Wind Direction Routines
     def current_wind_direction(self):
-        voltageValue= self.current_wind_direction_voltage()
-        direction = voltageToDegrees(voltageValue, SDL_Pi_WeatherRack._currentWindDirection)
+        voltage= self.current_wind_direction_voltage()
+        direction = voltageToDegrees(voltage, SDL_Pi_WeatherRack._currentWindDirection)
         return direction
 
     def current_wind_direction_voltage(self):
-        if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:
-            value = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane on WeatherPiArduino
-            value1 = self.ads1015.readADCSingleEnded(0x02, self.gain, self.sps)  # AIN2 wired to Vcc - referential voltage
-            voltageValue = (value * 5000/(value1))/1000
+        # for some positions the wind vane returns very small voltage diferences 
+        # 112.5° => 0.321V voltage difference 0.088V comparing with voltage for 67.5°
+        #  67.5° => 0.409V voltage difference 0.045V comparing with voltage for 90.0°
+        #  90.0° => 0.455V 
+        # so we have to measure very precisely 
+        # to achive this goal we recalculate voltage measured on voltage divider (wind vane)
+        # using referential Vcc voltage measured on AIN2 pin
+        if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:            
+            vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage      
+            vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
+            voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = an ideal Vcc voltage
+            print "vcc:", vcc/1000
+            print "vane:", vaneVoltage/1000
+
         else:
             # user internal A/D converter
-            voltageValue = 0.0
-        return voltageValue
+            voltage = 0.0
+        return voltage
 
     # Utility methods
     def reset_rain_total(self):
