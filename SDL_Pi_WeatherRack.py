@@ -54,55 +54,59 @@ WIND_FACTOR = 2.400 / SDL_INTERRUPT_CLICKS
 
 
 def voltageToDegrees(value, defaultWindDirection):    
-    
+
 #    ADJUST3OR5 = 1.0 # For Vcc 5V, use 1.0.  For Vcc 3.3V use 0.66 (3.3/5 = 0.66)
 
-    if value >= 3.6343 and value < 3.9389:
+    if value >= 3.63433 and value < 3.93894:
         return 0.0
 
-    if value >= 1.6925 and value < 2.1174:
+    if value >= 1.6925 and value < 2.11744:
         return 22.5
 
-    if value >= 2.1174 and value < 2.5898:
+    if value >= 2.11744 and value < 2.58979:
         return 45
 
-    if value >= 0.3654 and value < 0.48:
+    if value >= 0.36541 and value < 0.43186:
+        # high margin value incrased manualy after some testing
+        # calculated voltage value = 0.43186        
         return 67.5
 
-    if value >= 0.48 and value < 0.5356:
+    if value >= 0.43186 and value < 0.53555:
+        # low margine value decrased manualy after some testing
+        # calculated voltage value = 0.43186
         return 90.0
 
     if value >= 0.2108 and value < 0.3654:
         return 112.5
 
-    if value >= 0.7591 and value < 1.0476:
+    if value >= 0.7591 and value < 1.04761:
         return 135.0
-    
-    if value >= 0.5356 and value < 0.7591:
+
+    if value >= 0.53555 and value < 0.7591:
         return 157.5
 
-    if value >= 1.2982 and value < 1.6925:
+    if value >= 1.29823 and value < 1.6925:
         return 180
 
-    if value >= 1.0476 and value < 1.2982:
+    if value >= 1.04761 and value < 1.29823:
         return 202.5
 
-    if value >= 3.0019 and value < 3.2542:
+    if value >= 3.00188 and value < 3.25418:
         return 225
 
-    if value >= 2.5898 and value < 3.0019:
+    if value >= 2.58979 and value < 3.00188:
         return 247.5
 
-    if value >= 4.4739 and value < 4.8077:
+    if value >= 4.47391 and value < 4.80769:
         return 270.0
 
-    if value >= 3.9389 and value < 4.1866:
+    if value >= 3.93894 and value < 4.18656:
         return 292.5
 
-    if value >= 4.1866 and value < 4.4739:
+    if value >= 4.18656 and value < 4.47391:
         return 315.0
 
-    if value >= 3.2542 and value < 3.6343:
+    if value >= 3.25418 and value < 3.63433:
         return 337.5
 
     return defaultWindDirection  # return previous value if not found
@@ -214,16 +218,17 @@ class SDL_Pi_WeatherRack:
         # 112.5° => 0.321V voltage difference 0.088V comparing with voltage for 67.5°
         #  67.5° => 0.409V voltage difference 0.045V comparing with voltage for 90.0°
         #  90.0° => 0.455V 
-        # so we have to measure very precisely 
-        # to achive this goal we recalculate voltage measured on voltage divider (wind vane)
-        # using referential Vcc voltage measured on AIN2 pin
+        # so we have to measure precisely as possible
+        # to achive this goal we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin
+        # using referential Vcc voltage measured on AIN0 pin
         if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:            
             vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage      
             vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
-            voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = an ideal Vcc voltage
+            voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = expected Vcc voltage
             print "vcc:", vcc/1000
-            print "vane:", vaneVoltage/1000
-            print "calc:", voltage
+            print "V read: ", vaneVoltage/1000
+            print "V calc: ", voltage
+            print "V diff: ", vaneVoltage/1000 - voltage
 
         else:
             # user internal A/D converter
@@ -313,4 +318,4 @@ class SDL_Pi_WeatherRack:
 
 
 
-			
+
