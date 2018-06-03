@@ -52,80 +52,57 @@ SDL_RAIN_BUCKET_CLICKS = 2
 WIND_FACTOR = 2.400 / SDL_INTERRUPT_CLICKS
 
 
-# Helper Functions
-def fuzzyCompare(compareValue, value):
-    VARYVALUE = 0.1
-    if value > compareValue * (1.0 - VARYVALUE) and value < compareValue * (1.0 + VARYVALUE):
-        return True
-    return False
 
 def voltageToDegrees(value, defaultWindDirection):    
     
-    ADJUST3OR5 = 1.0 # For Vcc 5V, use 1.0.  For Vcc 3.3V use 0.66 (3.3/5 = 0.66)
+#    ADJUST3OR5 = 1.0 # For Vcc 5V, use 1.0.  For Vcc 3.3V use 0.66 (3.3/5 = 0.66)
 
-#    if fuzzyCompare(3.837 * ADJUST3OR5, value):
-#    if value > 0.2158187135 and value < 0.3604095318:
-    if value >= 3.639 and value <= 3.934:
+    if value >= 3.6343 and value < 3.9389:
         return 0.0
 
-#    if fuzzyCompare(1.982 * ADJUST3OR5, value):
-    if value >= 1.698 and value <= 2.112:
+    if value >= 1.6925 and value < 2.1174:
         return 22.5
 
-#    if fuzzyCompare(2.253 * ADJUST3OR5, value):
-    if value >= 2.122 and value <= 2.585:
+    if value >= 2.1174 and value < 2.5898:
         return 45
 
-#    if fuzzyCompare(0.409 * ADJUST3OR5, value):
-    if value >= 0.37 and value <= 0.427:
+    if value >= 0.3654 and value < 0.48:
         return 67.5
 
-#    if fuzzyCompare(0.455 * ADJUST3OR5, value):
-    if value >= 0.437 and value <= 0.531:
+    if value >= 0.48 and value < 0.5356:
         return 90.0
 
-#    if fuzzyCompare(0.322 * ADJUST3OR5, value):
-    if value >= 0.216 and value <= 0.36:    
+    if value >= 0.2108 and value < 0.3654:
         return 112.5
 
-#    if fuzzyCompare(0.902 * ADJUST3OR5, value):
-    if value >= 0.764 and value <= 1.043:
+    if value >= 0.7591 and value < 1.0476:
         return 135.0
     
-#    if fuzzyCompare(0.617 * ADJUST3OR5, value):
-    if value >= 0.541 and value <= 0.754:
+    if value >= 0.5356 and value < 0.7591:
         return 157.5
 
-#    if fuzzyCompare(1.403 * ADJUST3OR5, value):
-    if value >= 1.303 and value <= 1.688:
+    if value >= 1.2982 and value < 1.6925:
         return 180
 
-#    if fuzzyCompare(1.194 * ADJUST3OR5, value):
-    if value >= 1.053 and value <= 1.293:
+    if value >= 1.0476 and value < 1.2982:
         return 202.5
 
-#    if fuzzyCompare(3.077 * ADJUST3OR5, value):
-    if value >= 3.007 and value <= 3.249:
+    if value >= 3.0019 and value < 3.2542:
         return 225
 
-#    if fuzzyCompare(2.927 * ADJUST3OR5, value):
-    if value >= 2.595 and value <= 2.997:
+    if value >= 2.5898 and value < 3.0019:
         return 247.5
 
-#    if fuzzyCompare(4.615 * ADJUST3OR5, value):
-    if value >= 4.479 and value <= 4.803:
+    if value >= 4.4739 and value < 4.8077:
         return 270.0
 
-#    if fuzzyCompare(4.041 * ADJUST3OR5, value):
-    if value >= 3.944 and value <= 4.182:
+    if value >= 3.9389 and value < 4.1866:
         return 292.5
 
-#    if fuzzyCompare(4.332 * ADJUST3OR5, value): 
-    if value >= 4.192 and value <= 4.469:
+    if value >= 4.1866 and value < 4.4739:
         return 315.0
 
-#    if fuzzyCompare(3.431 * ADJUST3OR5, value):
-    if value >= 3.259 and value <= 3.629:
+    if value >= 3.2542 and value < 3.6343:
         return 337.5
 
     return defaultWindDirection  # return previous value if not found
@@ -246,6 +223,7 @@ class SDL_Pi_WeatherRack:
             voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = an ideal Vcc voltage
             print "vcc:", vcc/1000
             print "vane:", vaneVoltage/1000
+            print "calc:", voltage
 
         else:
             # user internal A/D converter
