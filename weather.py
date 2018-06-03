@@ -37,7 +37,7 @@ SDL_MODE_SAMPLE = 0
 # BUG, not working
 SDL_MODE_DELAY = 1
 
-weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(anenometerPin, rainPin, intAnem=0, intRain=0, ADMode=SDL_MODE_I2C_ADS1015)
+weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(anenometerPin, rainPin, intAnem=0, intRain=0, ADMode=SDL_MODE_I2C_ADS1015, adcContinuousConversion=1)
 weatherStation.setWindMode(SDL_MODE_SAMPLE, 1.0)
 
 
@@ -70,4 +70,4 @@ while True:
 #    print '----------------- '
 #    print '----------------- '
 
-    time.sleep(2.0)
+    time.sleep(1)

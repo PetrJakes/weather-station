@@ -118,6 +118,18 @@ def micros():
     microseconds = int(round(time_.time() * 1000000))
     return microseconds
 
+
+def calculateMedian(list):
+    data = sorted(list)
+    n = len(data)
+    if n == 0:
+        return None
+    if n % 2 == 1:
+        return data[n // 2]
+    else:
+        i = n // 2
+        return (data[i - 1] + data[i]) / 2
+
 class SDL_Pi_WeatherRack:
     GPIO.setmode(GPIO.BCM)
     GPIO.setwarnings(False)
@@ -150,7 +162,8 @@ class SDL_Pi_WeatherRack:
 
     _ads1015 = 0x00
 
-    def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode):
+    def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode, adcContinuousConversion=0):
+        self.adcContinuousConversion=adcContinuousConversion
         GPIO.setup(pinAnem, GPIO.IN)
         GPIO.setup(pinRain, GPIO.IN)
         # when a falling edge is detected on port pinAnem, regardless of whatever
@@ -217,19 +230,39 @@ class SDL_Pi_WeatherRack:
         # for some positions the wind vane returns very small voltage diferences 
         # 112.5° => 0.321V voltage difference 0.088V comparing with voltage for 67.5°
         #  67.5° => 0.409V voltage difference 0.045V comparing with voltage for 90.0°
-        #  90.0° => 0.455V 
+        #  90.0° => 0.455V
         # so we have to measure precisely as possible
         # to achive this goal we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin
         # using referential Vcc voltage measured on AIN0 pin
-        if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:            
-            vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage      
-            vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
+        if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:
+            if self.adcContinuousConversion:
+                self.ads1015.startContinuousConversion(channel=0, sps=128) # data rate (samples per second)
+                vcc=[]
+                for i in range(10):
+                    if i > 4:
+                        vcc.append(self.ads1015.getLastConversionResults())
+                    else:
+                        self.ads1015.getLastConversionResults()
+                    time_.sleep(0.01)
+                vcc = calculateMedian(vcc)
+                self.ads1015.startContinuousConversion(channel=1, sps=128) # data rate (samples per second)
+                vaneVoltage = []
+                for i in range(10):
+                    if i > 4:
+                        vaneVoltage.append(self.ads1015.getLastConversionResults())
+                    else:
+                        self.ads1015.getLastConversionResults()
+                    time_.sleep(0.01)
+                vaneVoltage=calculateMedian(vaneVoltage)
+                
+            else:
+                vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
+                vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
             voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = expected Vcc voltage
             print "vcc:", vcc/1000
             print "V read: ", vaneVoltage/1000
             print "V calc: ", voltage
             print "V diff: ", vaneVoltage/1000 - voltage
-
         else:
             # user internal A/D converter
             voltage = 0.0
