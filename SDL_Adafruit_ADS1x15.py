@@ -203,7 +203,7 @@ class ADS1x15:
     # Wait for the ADC conversion to complete
     # The minimum delay depends on the sps: delay >= 1/sps
     # We add 0.1ms to be sure
-    delay = 1.0/sps+0.0001
+    delay = 1.0/sps+0.001
     time.sleep(delay)
 
     # Read the conversion results
@@ -268,7 +268,7 @@ class ADS1x15:
     # Wait for the ADC conversion to complete
     # The minimum delay depends on the sps: delay >= 1/sps
     # We add 0.1ms to be sure
-    delay = 1.0/sps+0.0001
+    delay = 1.0/sps+0.001
     time.sleep(delay)
 
     # Read the conversion results
@@ -341,7 +341,7 @@ class ADS1x15:
     # Wait for the ADC conversion to complete
     # The minimum delay depends on the sps: delay >= 1/sps
     # We add 0.1ms to be sure
-    delay = 1.0/sps+0.0001
+    delay = 1.0/sps+0.001
     time.sleep(delay)
 
     # Read the conversion results
@@ -457,7 +457,7 @@ class ADS1x15:
     # Wait for the ADC conversion to complete
     # The minimum delay depends on the sps: delay >= 1/sps
     # We add 0.5ms to be sure
-    delay = 1.0/sps+0.0005
+    delay = 1.0/sps+0.005
     time.sleep(delay)
   
     # Read the conversion results
@@ -534,7 +534,7 @@ class ADS1x15:
     # Wait for the ADC conversion to complete
     # The minimum delay depends on the sps: delay >= 1/sps
     # We add 0.5ms to be sure
-    delay = 1.0/sps+0.0005
+    delay = 1.0/sps+0.005
     time.sleep(delay)
   
     # Read the conversion results
