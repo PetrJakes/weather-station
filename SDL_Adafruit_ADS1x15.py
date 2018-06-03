@@ -149,6 +149,13 @@ class ADS1x15:
     # Set pga value, so that getLastConversionResult() can use it,
     # any function that accepts a pga value must update this.
     self.pga = 6144    
+    """
+   The ADS111x respond to the I2C general call address (0000000) if the eighth bit is 0. 
+   The devices acknowledge the general call address and respond to commands in the second byte.
+   If the second byte is 00000110 (06h), the ADS111x reset the internal registers and enter
+   a power-down state 
+   """
+    self.i2c.writeList(0x00, [0x06])
   
   def readRaw(self, channel=0, pga=6144, sps=250):
 

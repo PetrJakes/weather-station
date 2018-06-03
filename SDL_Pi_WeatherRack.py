@@ -67,13 +67,9 @@ def voltageToDegrees(value, defaultWindDirection):
         return 45
 
     if value >= 0.36541 and value < 0.43186:
-        # high margin value incrased manualy after some testing
-        # calculated voltage value = 0.43186        
         return 67.5
 
     if value >= 0.43186 and value < 0.53555:
-        # low margine value decrased manualy after some testing
-        # calculated voltage value = 0.43186
         return 90.0
 
     if value >= 0.2108 and value < 0.3654:
