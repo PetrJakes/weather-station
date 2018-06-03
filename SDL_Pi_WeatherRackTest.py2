@@ -65,9 +65,8 @@ while True:
 #    print 'max Ever Wind Speed=\t%0.2f MPH' % maxEverWind
 #    print 'MPH wind_gust=\t%0.2f MPH' % currentWindGust
 #    print 'max Ever Gust wind_gust=\t%0.2f MPH' % maxEverGust
-    print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()
-
-    print 'Wind Direction Voltage=\t\t %0.3f V' % weatherStation.current_wind_direction_voltage()
+    print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()    
+    print "===================================="
 #    print '----------------- '
 #    print '----------------- '
 
