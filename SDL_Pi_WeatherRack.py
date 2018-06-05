@@ -53,7 +53,7 @@ WIND_FACTOR = 2.400 / SDL_INTERRUPT_CLICKS
 
 
 
-def voltageToDegrees(value, defaultWindDirection):    
+def voltageToDegrees(value, lastKnownDirection):    
 
 #    ADJUST3OR5 = 1.0 # For Vcc 5V, use 1.0.  For Vcc 3.3V use 0.66 (3.3/5 = 0.66)
 
@@ -105,7 +105,7 @@ def voltageToDegrees(value, defaultWindDirection):
     elif value >= 3.25418 and value < 3.63433:
         return 337.5
     else:
-        return defaultWindDirection  # return previous value if not found
+        return lastKnownDirection  # return previous value if not found
 
 
 # return current microseconds
@@ -258,7 +258,7 @@ class SDL_Pi_WeatherRack:
         else:
             # user internal A/D converter
             voltage = 0.0
-        voltage = (vaneVoltage * 5000/vcc)  # 5000 = expected Vcc voltage
+        voltage = (vaneVoltage * 5000/vcc)  # 5000 = expected Vcc voltage        
         return voltage/1000, vaneVoltage/1000, vcc/1000
 
     # Utility methods
