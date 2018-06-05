@@ -44,6 +44,7 @@ weatherStation.setWindMode(SDL_MODE_SAMPLE, 1.0)
 maxEverWind = 0.0
 maxEverGust = 0.0
 totalRain = 0
+shall =0
 while True:
 #    print '---------------------------------------- '
 #    print '----------------- '
@@ -61,13 +62,13 @@ while True:
 
     if currentWindGust > maxEverGust:
         maxEverGust = currentWindGust
-
-#    print 'max Ever Wind Speed=\t%0.2f MPH' % maxEverWind
-#    print 'MPH wind_gust=\t%0.2f MPH' % currentWindGust
-#    print 'max Ever Gust wind_gust=\t%0.2f MPH' % maxEverGust
-    print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()    
-    print "===================================="
-#    print '----------------- '
-#    print '----------------- '
+    weatherStation.current_wind_direction()
+        #    print 'max Ever Wind Speed=\t%0.2f MPH' % maxEverWind
+    #    print 'MPH wind_gust=\t%0.2f MPH' % currentWindGust
+    #    print 'max Ever Gust wind_gust=\t%0.2f MPH' % maxEverGust
+#    print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()    
+#    print "===================================="
+    #    print '----------------- '
+    #    print '----------------- '
 
     time.sleep(1)

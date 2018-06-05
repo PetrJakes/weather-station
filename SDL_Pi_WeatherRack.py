@@ -60,52 +60,52 @@ def voltageToDegrees(value, defaultWindDirection):
     if value >= 3.63433 and value < 3.93894:
         return 0.0
 
-    if value >= 1.6925 and value < 2.11744:
+    elif value >= 1.6925 and value < 2.11744:
         return 22.5
 
-    if value >= 2.11744 and value < 2.58979:
+    elif value >= 2.11744 and value < 2.58979:
         return 45
 
-    if value >= 0.36541 and value < 0.43186:
+    elif value >= 0.36541 and value < 0.43186:        
         return 67.5
 
-    if value >= 0.43186 and value < 0.53555:
+    elif value >= 0.43186 and value < 0.53555:
         return 90.0
 
-    if value >= 0.2108 and value < 0.3654:
+    elif value >= 0.2108 and value < 0.3654:
         return 112.5
 
-    if value >= 0.7591 and value < 1.04761:
+    elif value >= 0.7591 and value < 1.04761:
         return 135.0
 
-    if value >= 0.53555 and value < 0.7591:
+    elif value >= 0.53555 and value < 0.7591:
         return 157.5
 
-    if value >= 1.29823 and value < 1.6925:
+    elif value >= 1.29823 and value < 1.6925:
         return 180
 
-    if value >= 1.04761 and value < 1.29823:
+    elif value >= 1.04761 and value < 1.29823:
         return 202.5
 
-    if value >= 3.00188 and value < 3.25418:
+    elif value >= 3.00188 and value < 3.25418:
         return 225
 
-    if value >= 2.58979 and value < 3.00188:
+    elif value >= 2.58979 and value < 3.00188:
         return 247.5
 
-    if value >= 4.47391 and value < 4.80769:
+    elif value >= 4.47391 and value < 4.80769:
         return 270.0
 
-    if value >= 3.93894 and value < 4.18656:
+    elif value >= 3.93894 and value < 4.18656:
         return 292.5
 
     if value >= 4.18656 and value < 4.47391:
         return 315.0
 
-    if value >= 3.25418 and value < 3.63433:
+    elif value >= 3.25418 and value < 3.63433:
         return 337.5
-
-    return defaultWindDirection  # return previous value if not found
+    else:
+        return defaultWindDirection  # return previous value if not found
 
 
 # return current microseconds
@@ -218,8 +218,10 @@ class SDL_Pi_WeatherRack:
 
     # Wind Direction Routines
     def current_wind_direction(self):
-        voltage= self.current_wind_direction_voltage()
+        voltage, vaneVoltage, vcc= self.current_wind_direction_voltage()
         direction = voltageToDegrees(voltage, SDL_Pi_WeatherRack._currentWindDirection)
+        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  direction)
+        SDL_Pi_WeatherRack._currentWindDirection=direction
         return direction
 
     def current_wind_direction_voltage(self):
@@ -234,35 +236,30 @@ class SDL_Pi_WeatherRack:
             if self.adcContinuousConversion:
                 self.ads1015.startContinuousConversion(channel=0, sps=128) # data rate (samples per second)
                 vcc=[]
-                for i in range(10):
-                    if i > 4:
+                for i in range(8):
+                    if i > 3:
                         vcc.append(self.ads1015.getLastConversionResults())
                     else:
                         self.ads1015.getLastConversionResults()
-                    time_.sleep(0.01)
+                    time_.sleep(0.02)
                 vcc = calculateMedian(vcc)
                 self.ads1015.startContinuousConversion(channel=1, sps=128) # data rate (samples per second)
                 vaneVoltage = []
-                for i in range(10):
-                    if i > 4:
+                for i in range(8):
+                    if i > 3:
                         vaneVoltage.append(self.ads1015.getLastConversionResults())
                     else:
                         self.ads1015.getLastConversionResults()
-                    time_.sleep(0.01)
+                    time_.sleep(0.02)
                 vaneVoltage=calculateMedian(vaneVoltage)
-                
             else:
                 vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
-                vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
-            voltage = (vaneVoltage * 5000/(vcc))/1000  # 5000 = expected Vcc voltage
-            print "vcc:", vcc/1000
-            print "V read: ", vaneVoltage/1000
-            print "V calc: ", voltage
-            print "V diff: ", vaneVoltage/1000 - voltage
+                vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider            
         else:
             # user internal A/D converter
             voltage = 0.0
-        return voltage
+        voltage = (vaneVoltage * 5000/vcc)  # 5000 = expected Vcc voltage
+        return voltage/1000, vaneVoltage/1000, vcc/1000
 
     # Utility methods
     def reset_rain_total(self):
@@ -334,7 +331,7 @@ class SDL_Pi_WeatherRack:
             print 'DEBOUNCE-count=%i' % SDL_Pi_WeatherRack._currentWindCount
 
     def serviceInterruptRain(self, channel):
-        print 'Rain Interrupt Service Routine'
+#        print 'Rain Interrupt Service Routine'
         currentTime = micros() - SDL_Pi_WeatherRack._lastRainTime
         SDL_Pi_WeatherRack._lastRainTime = micros()
         if currentTime > 500:  # debounce
