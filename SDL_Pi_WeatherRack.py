@@ -26,8 +26,6 @@ except:
 import sys
 import time as time_
 
-sys.path.append('../SDL_Adafruit_ADS1x15')
-
 from SDL_Adafruit_ADS1x15 import ADS1x15
 import RPi.GPIO as GPIO
 
@@ -156,7 +154,8 @@ class SDL_Pi_WeatherRack:
 
     _ads1015 = 0x00
 
-    def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode):
+    def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode, adcContinuousConversion=0):
+        self.adcContinuousConversion=adcContinuousConversion
         GPIO.setup(pinAnem, GPIO.IN)
         GPIO.setup(pinRain, GPIO.IN)
         # when a falling edge is detected on port pinAnem, regardless of whatever
@@ -230,8 +229,28 @@ class SDL_Pi_WeatherRack:
         # to achive this goal we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin
         # using referential Vcc voltage measured on AIN0 pin
         if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:
+            # multiple readings  will supperes wind vane turbulent unstability moves
+            if self.adcContinuousConversion:
+                self.ads1015.startContinuousConversion(channel=1, sps=128) # data rate (samples per second)
+                vaneVoltage = []
+                for i in range(20):
+                    vaneVoltage.append(self.ads1015.getLastConversionResults())
+                    time_.sleep(0.02)                
+                vaneVoltage=calculateMedian(vaneVoltage)    
+                self.ads1015.startContinuousConversion(channel=0, sps=128) # data rate (samples per second)
+                vcc = []
+                for i in range(5):
+                    vcc.append(self.ads1015.getLastConversionResults())
+                    time_.sleep(0.02)                
+                vcc=calculateMedian(vcc)    
+            else:
+                self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider            
+                vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
+            # first reading gives wrong value, lets read it twice
+            self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
             vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
-            vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider            
+            
+            
         else:
             # user internal A/D converter
             voltage = 0.0

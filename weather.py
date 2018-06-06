@@ -40,7 +40,8 @@ SDL_MODE_DELAY = 1
 weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(
                                                                 anenometerPin, rainPin, 
                                                                 intAnem=0, intRain=0, 
-                                                                ADMode=SDL_MODE_I2C_ADS1015                                                                 
+                                                                ADMode=SDL_MODE_I2C_ADS1015, 
+                                                                adcContinuousConversion=0
                                                                 )
 weatherStation.setWindMode(SDL_MODE_SAMPLE, 1.0)
 
