@@ -56,52 +56,52 @@ def voltageToDegrees(value, lastKnownDirection):
     if value >= 3.63433 and value < 3.93894:
         return 0.0
 
-    elif value >= 1.6925 and value < 2.11744:
+    if value >= 1.6925 and value < 2.11744:
         return 22.5
 
-    elif value >= 2.11744 and value < 2.58979:
+    if value >= 2.11744 and value < 2.58979:
         return 45
 
-    elif value >= 0.36541 and value < 0.43186:        
+    if value >= 0.36541 and value < 0.43186:        
         return 67.5
 
-    elif value >= 0.43186 and value < 0.53555:
+    if value >= 0.43186 and value < 0.53555:
         return 90.0
 
-    elif value >= 0.2108 and value < 0.3654:
+    if value >= 0.2108 and value < 0.3654:
         return 112.5
 
-    elif value >= 0.7591 and value < 1.04761:
+    if value >= 0.7591 and value < 1.04761:
         return 135.0
 
-    elif value >= 0.53555 and value < 0.7591:
+    if value >= 0.53555 and value < 0.7591:
         return 157.5
 
-    elif value >= 1.29823 and value < 1.6925:
+    if value >= 1.29823 and value < 1.6925:
         return 180
 
-    elif value >= 1.04761 and value < 1.29823:
+    if value >= 1.04761 and value < 1.29823:
         return 202.5
 
-    elif value >= 3.00188 and value < 3.25418:
+    if value >= 3.00188 and value < 3.25418:
         return 225
 
-    elif value >= 2.58979 and value < 3.00188:
+    if value >= 2.58979 and value < 3.00188:
         return 247.5
 
-    elif value >= 4.47391 and value < 4.80769:
+    if value >= 4.47391 and value < 4.80769:
         return 270.0
 
-    elif value >= 3.93894 and value < 4.18656:
+    if value >= 3.93894 and value < 4.18656:
         return 292.5
 
     if value >= 4.18656 and value < 4.47391:
         return 315.0
 
-    elif value >= 3.25418 and value < 3.63433:
+    if value >= 3.25418 and value < 3.63433:
         return 337.5
-    else:
-        return lastKnownDirection  # return previous value if not found
+    
+    return lastKnownDirection  # return previous value if not found
 
 
 # return current microseconds
@@ -156,8 +156,8 @@ class SDL_Pi_WeatherRack:
 
     def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode, adcContinuousConversion=0):
         self.adcContinuousConversion=adcContinuousConversion
-        GPIO.setup(pinAnem, GPIO.IN)
-        GPIO.setup(pinRain, GPIO.IN)
+        GPIO.setup(pinAnem, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.setup(pinRain, GPIO.IN)        
         # when a falling edge is detected on port pinAnem, regardless of whatever
         # else is happening in the program, the function callback will be run
 
@@ -222,12 +222,12 @@ class SDL_Pi_WeatherRack:
 
     def current_wind_direction_voltage(self):
         # for some positions the wind vane returns very small voltage diferences 
-        # 112.5° => 0.321V voltage difference 0.088V comparing with voltage for 67.5°
-        #  67.5° => 0.409V voltage difference 0.045V comparing with voltage for 90.0°
+        # 112.5° => 0.321V voltage difference 0.088V comparing to voltage for 67.5°
+        #  67.5° => 0.409V voltage difference 0.045V comparing to voltage for 90.0°
         #  90.0° => 0.455V
-        # so we have to measure precisely as possible
-        # to achive this goal we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin
-        # using referential Vcc voltage measured on AIN0 pin
+        # because of that, we have to measure precisely as possible
+        # to achive this goal it is necessary to measure Vcc voltage on the AIN0 pin (referential voltage) 
+        # and using this value recalculate voltage measured on the voltage divider (wind vane) AIN1 pin        
         if SDL_Pi_WeatherRack._ADMode == SDL_MODE_I2C_ADS1015:
             # multiple readings  will supperes wind vane turbulent unstability moves
             if self.adcContinuousConversion:
@@ -244,9 +244,10 @@ class SDL_Pi_WeatherRack:
                     time_.sleep(0.02)                
                 vcc=calculateMedian(vcc)    
             else:
-                self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider            
+                # first reading returns wrong value sometimes, lets read it twice
+                self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps) 
                 vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
-            # first reading gives wrong value, lets read it twice
+            # first reading returns wrong value sometimes, lets read it twice
             self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
             vcc = self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
             
@@ -254,8 +255,8 @@ class SDL_Pi_WeatherRack:
         else:
             # user internal A/D converter
             voltage = 0.0
-        # recalculating measured value accordint to the measured Vcc
-        # all voltages on wind vane voltage divider are calculated for 5V Vcc
+        # all voltages constants in the voltageToDegrees function are valid for 5V Vcc
+        # lets recalculate value measured on the voltage divider to the value expected for 5V
         voltage = (vaneVoltage * (5000/vcc))
         
         return voltage/1000, vaneVoltage/1000, vcc/1000
