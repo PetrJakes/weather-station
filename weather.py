@@ -11,6 +11,7 @@
 
 import time
 import sys
+import bme280
 
 #sys.path.append('../Adafruit_ADS1x15')
 #sys.path.append('../')
@@ -73,6 +74,12 @@ while True:
     print 'max Ever Gust wind_gust=\t%0.2f MPH' % maxEverGust
     print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()    
     print "===================================="
+    temperature,pressure,humidity,psea = bme280.readBME280All()
+    print "Temperature        : ", temperature, "C"
+    print "Pressure           : ", pressure, "hPa"
+    print "Humidity           : ", humidity, "%"
+    print "Pressure above sea : ", psea, "hPa"
+    print "Altitude above sea : ", bme280.altitude, "m"
     #    print '----------------- '
     #    print '----------------- '
 
