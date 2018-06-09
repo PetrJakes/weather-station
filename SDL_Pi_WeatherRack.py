@@ -37,10 +37,10 @@ from datetime import *
 SDL_MODE_INTERNAL_AD = 0x00
 SDL_MODE_I2C_ADS1015 = 0x01
 
-# sample mode means return immediately.  THe wind speed is averaged at sampleTime or when you ask, whichever is longer
+# sample mode means return immediately.  THe wind speed is averaged at sampleInterval or when you ask, whichever is longer
 SDL_MODE_SAMPLE = 0x00
 
-# Delay mode means to wait for sampleTime and the average after that time.
+# Delay mode means to wait for sampleInterval and the average after that time.
 SDL_MODE_DELAY = 0x01
 
 # Number of Interupts per Rain Bucket and Anemometer Clicks
@@ -107,7 +107,7 @@ def voltageToDegrees(value, lastKnownDirection):
 # return current microseconds
 
 def micros():
-    microseconds = int(round(time_.time() * 1000000))
+    microseconds = int(round(time_.time() * 1000000))    
     return microseconds
 
 
@@ -145,9 +145,9 @@ class SDL_Pi_WeatherRack:
     _lastWindTime = 0x00
     _shortestWindTime = 0x00
 
-    _sampleTime = 5.0
+    __sampleInterval = 5.0
     _selectedMode = SDL_MODE_SAMPLE
-    _startSampleTime = 0x00
+    _startsampleInterval = 0x00
 
     _currentRainMin = 0x00
     _lastRainTime = 0x00
@@ -216,7 +216,7 @@ class SDL_Pi_WeatherRack:
     def current_wind_direction(self):
         voltage, vaneVoltage, vcc= self.current_wind_direction_voltage()
         direction = voltageToDegrees(voltage, SDL_Pi_WeatherRack._currentWindDirection)
-        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  direction)
+#        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  direction)
         SDL_Pi_WeatherRack._currentWindDirection=direction
         return direction
 
@@ -271,27 +271,27 @@ class SDL_Pi_WeatherRack:
     def reset_wind_gust(self):
         SDL_Pi_WeatherRack._shortestWindTime = 0xffffffff
 
-    def startWindSample(self, sampleTime):
-        SDL_Pi_WeatherRack._startSampleTime = micros()
-        SDL_Pi_WeatherRack._sampleTime = sampleTime
+    def startWindSample(self, sampleInterval):
+        SDL_Pi_WeatherRack._startsampleInterval = micros()
+        SDL_Pi_WeatherRack.__sampleInterval = sampleInterval
 
     def get_current_wind_speed_when_sampling(self):
-        compareValue = SDL_Pi_WeatherRack._sampleTime * 1000000
-        if micros() - SDL_Pi_WeatherRack._startSampleTime >= compareValue:
+        compareValue = SDL_Pi_WeatherRack.__sampleInterval * 1000000
+        if micros() - SDL_Pi_WeatherRack._startsampleInterval >= compareValue:
             # sample time exceeded, calculate currentWindSpeed
-            timeSpan = micros() - SDL_Pi_WeatherRack._startSampleTime
+            timeSpan = micros() - SDL_Pi_WeatherRack._startsampleInterval
             SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._currentWindCount) / float(timeSpan) * WIND_FACTOR * 1000000.0
-            # print "SDL_CWS = %f, SDL_Pi_WeatherRack._shortestWindTime = %i, CWCount=%i TPS=%f" % (SDL_Pi_WeatherRack._currentWindSpeed,SDL_Pi_WeatherRack._shortestWindTime, SDL_Pi_WeatherRack._currentWindCount, float(SDL_Pi_WeatherRack._currentWindCount)/float(SDL_Pi_WeatherRack._sampleTime))
+            # print "SDL_CWS = %f, SDL_Pi_WeatherRack._shortestWindTime = %i, CWCount=%i TPS=%f" % (SDL_Pi_WeatherRack._currentWindSpeed,SDL_Pi_WeatherRack._shortestWindTime, SDL_Pi_WeatherRack._currentWindCount, float(SDL_Pi_WeatherRack._currentWindCount)/float(SDL_Pi_WeatherRack.__sampleInterval))
             SDL_Pi_WeatherRack._currentWindCount = 0x00
-            SDL_Pi_WeatherRack._startSampleTime = micros()
+            SDL_Pi_WeatherRack._startsampleInterval = micros()
          # print "SDL_Pi_WeatherRack._currentWindSpeed=", SDL_Pi_WeatherRack._currentWindSpeed
         return SDL_Pi_WeatherRack._currentWindSpeed
 
-    def setWindMode(self, selectedMode, sampleTime):  # time in seconds
-        SDL_Pi_WeatherRack._sampleTime = sampleTime
+    def setWindMode(self, selectedMode, sampleInterval):  # time in seconds
+        SDL_Pi_WeatherRack.__sampleInterval = sampleInterval
         SDL_Pi_WeatherRack._selectedMode = selectedMode
         if SDL_Pi_WeatherRack._selectedMode == SDL_MODE_SAMPLE:
-            self.startWindSample(SDL_Pi_WeatherRack._sampleTime)
+            self.startWindSample(SDL_Pi_WeatherRack.__sampleInterval)
 
     def get_current_rain_total(self):
         rain_amount = 0.2794  * float(SDL_Pi_WeatherRack._currentRainCount) / SDL_RAIN_BUCKET_CLICKS
@@ -304,8 +304,8 @@ class SDL_Pi_WeatherRack:
         else:
             # km/h * 1000 msec
             SDL_Pi_WeatherRack._currentWindCount = 0x00
-            delay(SDL_Pi_WeatherRack._sampleTime * 1000)
-            SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._currentWindCount) / float(SDL_Pi_WeatherRack._sampleTime) * WIND_FACTOR
+            delay(SDL_Pi_WeatherRack.__sampleInterval * 1000)
+            SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._currentWindCount) / float(SDL_Pi_WeatherRack.__sampleInterval) * WIND_FACTOR
         return SDL_Pi_WeatherRack._currentWindSpeed
 
     def get_wind_gust(self):

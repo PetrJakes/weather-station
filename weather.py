@@ -6,15 +6,13 @@
 #
 # SwitchDoc Labs
 # www.switchdoc.com
-#
+# modified by Petr Jakes
+# 8.6.2018
 #
 
 import time
 import sys
 import bme280
-
-#sys.path.append('../Adafruit_ADS1x15')
-#sys.path.append('../')
 
 import config
 import SDL_Pi_WeatherRack as SDL_Pi_WeatherRack
@@ -24,20 +22,20 @@ import SDL_Pi_WeatherRack as SDL_Pi_WeatherRack
 anenometerPin = 7
 rainPin = 21
 
-# anenometerPin = 6
-# rainPin = 12
 # constants
-
 SDL_MODE_INTERNAL_AD = 0 # using internal A/D converter for voltage reading
 SDL_MODE_I2C_ADS1015 = 1 # using ADS1x15 for voltage reading
 
-# sample mode means return immediately.  THe wind speed is averaged at sampleTime or when you ask, whichever is longer
+# sample mode means return immediately.  THe wind speed is averaged at sampleInterval or when you ask, whichever is longer
 SDL_MODE_SAMPLE = 0
 
-# Delay mode means to wait for sampleTime and the average after that time.
+# Delay mode means to wait for sampleInterval and the average after that time.
 # BUG, not working
 SDL_MODE_DELAY = 1
 
+
+# adcContinuousConversion sets ADC to the continuous reading
+# multiple voltage values are read, median function is used to find returned value
 weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(
                                                                 anenometerPin, rainPin, 
                                                                 intAnem=0, intRain=0, 
@@ -58,7 +56,7 @@ while True:
 #    print ' WeatherRack Weather Sensors'
 #    print '----------------- '
 
-    currentWindSpeed = weatherStation.current_wind_speed() / 1.609
+    currentWindSpeed = weatherStation.current_wind_speed() / 1.609 # converting to mph
     currentWindGust = weatherStation.get_wind_gust() / 1.609
 #    totalRain = totalRain + weatherStation.get_current_rain_total() / 25.4
 #    print 'Rain Total=\t%0.2f in' % totalRain
@@ -68,18 +66,17 @@ while True:
 
     if currentWindGust > maxEverGust:
         maxEverGust = currentWindGust
-    weatherStation.current_wind_direction()
     print 'max Ever Wind Speed=\t%0.2f MPH' % maxEverWind
     print 'MPH wind_gust=\t%0.2f MPH' % currentWindGust
     print 'max Ever Gust wind_gust=\t%0.2f MPH' % maxEverGust
     print 'Wind Direction=\t\t\t %0.2f Degrees' % weatherStation.current_wind_direction()    
     print "===================================="
-    temperature,pressure,humidity,psea = bme280.readBME280All()
-    print "Temperature        : ", temperature, "C"
-    print "Pressure           : ", pressure, "hPa"
-    print "Humidity           : ", humidity, "%"
-    print "Pressure above sea : ", psea, "hPa"
-    print "Altitude above sea : ", bme280.altitude, "m"
+#    temperature,pressure,humidity,psea = bme280.readBME280All()
+#    print "Temperature        : ", temperature, "C"
+#    print "Humidity           : ", humidity, "%"
+#    print "Pressure           : ", pressure, "hPa"
+#    print "Pressure above sea : ", psea, "hPa"
+#    print "Altitude above sea : ", bme280.altitude, "m"
     #    print '----------------- '
     #    print '----------------- '
 
