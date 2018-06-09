@@ -134,8 +134,8 @@ class SDL_Pi_WeatherRack:
     _ADChannel = 0x00
     _ADMode = 0x00
 
-    _currentRainCount = 0x00
-    _windSwitchPulses = 0x00
+    _currentRainCount = 0
+    _windSwitchPulses = 0
     _currentWindSpeed = 0.0
     _currentWindDirection = 0.0
 
@@ -272,10 +272,14 @@ class SDL_Pi_WeatherRack:
         if pulseInterval >= samplingIntervalInMicros:
             # samp1ling time exceeded, calculate currentWindSpeed            
             SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._windSwitchPulses) / float(pulseInterval) * WIND_FACTOR * 1000000.0
-            # print "SDL_CWS = %f, SDL_Pi_WeatherRack._shortestWindSwitchPulse = %i, CWCount=%i TPS=%f" % (SDL_Pi_WeatherRack._currentWindSpeed,SDL_Pi_WeatherRack._shortestWindSwitchPulse, SDL_Pi_WeatherRack._windSwitchPulses, float(SDL_Pi_WeatherRack._windSwitchPulses)/float(SDL_Pi_WeatherRack._samplingInterval))
+            print "WindSpeed = %f, shortestPulse = %i, PulseCount=%i Pulses=%f" % (SDL_Pi_WeatherRack._currentWindSpeed, 
+                                                                                                   SDL_Pi_WeatherRack._shortestWindSwitchPulse, 
+                                                                                                   SDL_Pi_WeatherRack._windSwitchPulses, 
+                                                                                                   float(SDL_Pi_WeatherRack._windSwitchPulses)/float(SDL_Pi_WeatherRack._samplingInterval)
+                                                                                                   )
             SDL_Pi_WeatherRack._windSwitchPulses = 0
             SDL_Pi_WeatherRack._samplingStartTime = recentTimeInMicros()
-         # print "SDL_Pi_WeatherRack._currentWindSpeed=", SDL_Pi_WeatherRack._currentWindSpeed
+         
         
     def current_wind_speed(self):  # in milliseconds
         if SDL_Pi_WeatherRack._windReadingMode == SDL_MODE_SAMPLE:
