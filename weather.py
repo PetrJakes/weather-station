@@ -26,10 +26,11 @@ rainPin = 21
 SDL_MODE_INTERNAL_AD = 0 # using internal A/D converter for voltage reading
 SDL_MODE_I2C_ADS1015 = 1 # using ADS1x15 for voltage reading
 
-# sample mode means return immediately.  THe wind speed is averaged at sampleInterval or when you ask, whichever is longer
+# wind speed sampling constants
+# sample mode means return immediately.  THe wind speed is averaged at samplingInterval or when you ask, whichever is longer
 SDL_MODE_SAMPLE = 0
 
-# Delay mode means to wait for sampleInterval and the average after that time.
+# Delay mode means to wait for samplingInterval and the average after that time.
 # BUG, not working
 SDL_MODE_DELAY = 1
 
@@ -42,7 +43,8 @@ weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(
                                                                 ADMode=SDL_MODE_I2C_ADS1015, 
                                                                 adcContinuousConversion=0
                                                                 )
-weatherStation.setWindMode(SDL_MODE_SAMPLE, 1.0)
+weatherStation.setWindReadingMode(SDL_MODE_SAMPLE, samplingInterval=1.0) # sampling interval in seconds
+#weatherStation.setWindReadingMode(SDL_MODE_DELAY, samplingInterval=2.0)
 
 
 maxEverWind = 0.0
