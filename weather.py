@@ -46,6 +46,22 @@ weatherStation = SDL_Pi_WeatherRack.SDL_Pi_WeatherRack(
 weatherStation.setWindReadingMode(SDL_MODE_SAMPLE, samplingInterval=1.0) # sampling interval in seconds
 #weatherStation.setWindReadingMode(SDL_MODE_DELAY, samplingInterval=2.0)
 
+import math
+pi8=math.pi/8.0
+def AveragingWindDirections(listOfAngles):
+    sinSum = 0
+    cosSum = 0
+    for angle in listOfAngles:
+        sinSum += math.sin(math.radians(angle))
+        cosSum += math.cos(math.radians(angle))    
+    avSin=sinSum/16.0
+    avCos=cosSum/16.0        
+    return ((math.degrees(math.atan2(sinSum, cosSum)) + 360) % 360)
+    
+mySample=[30, 12, 35, 10, 10, 20, 30, 30, 30, 30, 30]
+print "****************"
+print AveragingWindDirections(mySample)
+print "*****************"
 
 maxEverWind = 0.0
 maxEverGust = 0.0

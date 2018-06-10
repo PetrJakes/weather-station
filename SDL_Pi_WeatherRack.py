@@ -25,6 +25,7 @@ except:
 
 import sys
 import time as time_
+import math
 
 from SDL_Adafruit_ADS1x15 import ADS1x15
 import RPi.GPIO as GPIO
@@ -49,7 +50,13 @@ SDL_RAIN_BUCKET_CLICKS = 2
 
 WIND_FACTOR = 2.400 / SDL_INTERRUPT_CLICKS
 
-
+def AveragingWindDirections(listOfAngles):
+    sinSum = 0
+    cosSum = 0
+    for angle in listOfAngles:
+        sinSum += math.sin(math.radians(angle))
+        cosSum += math.cos(math.radians(angle))
+    return ((math.degrees(mat.atan2(sinSum, cosSum)) + 360) % 360)
 
 def voltageToDegrees(value, lastKnownDirection):    
 
