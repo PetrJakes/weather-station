@@ -62,61 +62,42 @@ def voltageToDegrees(value, lastKnownDirection):
 
     if value >= 3.63433 and value < 3.93894:
         return 0.0
-
     if value >= 1.6925 and value < 2.11744:
         return 22.5
-
     if value >= 2.11744 and value < 2.58979:
         return 45
-
     if value >= 0.36541 and value < 0.43186:        
         return 67.5
-
     if value >= 0.43186 and value < 0.53555:
         return 90.0
-
     if value >= 0.2108 and value < 0.3654:
         return 112.5
-
     if value >= 0.7591 and value < 1.04761:
         return 135.0
-
     if value >= 0.53555 and value < 0.7591:
         return 157.5
-
     if value >= 1.29823 and value < 1.6925:
         return 180
-
     if value >= 1.04761 and value < 1.29823:
         return 202.5
-
     if value >= 3.00188 and value < 3.25418:
         return 225
-
     if value >= 2.58979 and value < 3.00188:
         return 247.5
-
     if value >= 4.47391 and value < 4.80769:
         return 270.0
-
     if value >= 3.93894 and value < 4.18656:
         return 292.5
-
     if value >= 4.18656 and value < 4.47391:
         return 315.0
-
     if value >= 3.25418 and value < 3.63433:
-        return 337.5
-    
+        return 337.5    
     return lastKnownDirection  # return previous value if not found
-
-
 
 def recentTimeInMicros():
     # return current Time In Microseconds
     currentTimeInMicroseconds = int(round(time_.time() * 1000000))    
     return currentTimeInMicroseconds
-
 
 def calculateMedian(list):
     data = sorted(list)
@@ -142,32 +123,31 @@ class SDL_Pi_WeatherRack:
     _ADMode = 0x00
 
     _currentRainCount = 0
+    _currentRainMin = 0
+    _lastRainTime = 0
+    
     _windSwitchPulses = 0
-    _currentWindSpeed = 0.0
-    _currentWindDirection = 0.0
-
-    _lastWindPulseTime = 0x00
-    _shortestWindSwitchPulse = 0x00
+    _currentWindSpeed = 0
+    _currentWindDirection = 0
+    _lastWindPulseTime = 0
+    _shortestWindSwitchPulse = 0
 
     _samplingInterval = 5.0
     _windReadingMode = SDL_MODE_SAMPLE
-    _samplingStartTime = 0x00
+    _samplingStartTime = 0
 
-    _currentRainMin = 0x00
-    _lastRainTime = 0x00
-
-    _ads1015 = 0x00
+    _ads1015 =0
 
     def __init__(self, pinAnem, pinRain, intAnem, intRain, ADMode, adcContinuousConversion=0):
         self.adcContinuousConversion=adcContinuousConversion
         GPIO.setup(pinAnem, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.setup(pinRain, GPIO.IN)        
 
-        # when a falling edge is detected on port pinAnem or pinRain, regardless of whatever
+        # when a rising edge is detected on port pinAnem or pinRain, regardless of whatever
         # else is happening in the program, the function callback will be run
         # bouncetime (optional) minimum time between two callbacks in milliseconds
-        GPIO.add_event_detect(pinAnem, GPIO.RISING, callback=self.serviceInterruptAnem,bouncetime=40) 
-        GPIO.add_event_detect(pinRain, GPIO.RISING, callback=self.serviceInterruptRain,bouncetime=40)
+        GPIO.add_event_detect(pinAnem, GPIO.RISING, callback=self.serviceInterruptAnem) 
+        GPIO.add_event_detect(pinRain, GPIO.RISING, callback=self.serviceInterruptRain)
         ADS1015 = 0x00  # 12-bit ADC
         ADS1115 = 0x01  # 16-bit ADC
 
@@ -264,21 +244,18 @@ class SDL_Pi_WeatherRack:
         return voltage/1000, vaneVoltage/1000, vcc/1000
 
     # Utility methods
-    def reset_rain_total(self):
-        SDL_Pi_WeatherRack._currentRainCount = 0
-
-    def setWindReadingMode(self, windReadingMode, samplingInterval):  # time in seconds
+    def setWindReadingMode(self, windReadingMode, samplingInterval):  
         SDL_Pi_WeatherRack._windReadingMode = windReadingMode
-        SDL_Pi_WeatherRack._samplingInterval = samplingInterval        
+        SDL_Pi_WeatherRack._samplingInterval = samplingInterval  # sampling interval in seconds      
         if SDL_Pi_WeatherRack._windReadingMode == SDL_MODE_SAMPLE:
             SDL_Pi_WeatherRack._samplingStartTime = recentTimeInMicros()        
 
     def get_current_wind_speed_when_sampling(self):
         samplingIntervalInMicros = SDL_Pi_WeatherRack._samplingInterval * 1000000
-        pulseInterval = recentTimeInMicros() - SDL_Pi_WeatherRack._samplingStartTime
-        if pulseInterval >= samplingIntervalInMicros:
+        samplingInterval = recentTimeInMicros() - SDL_Pi_WeatherRack._samplingStartTime
+        if samplingInterval >= samplingIntervalInMicros:
             # samp1ling time exceeded, calculate currentWindSpeed            
-            SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._windSwitchPulses) / float(pulseInterval) * WIND_FACTOR * 1000000.0
+            SDL_Pi_WeatherRack._currentWindSpeed = float(SDL_Pi_WeatherRack._windSwitchPulses) / float(samplingInterval) * WIND_FACTOR * 1000000.0
             print "WindSpeed = %f, shortestPulse = %i, PulseCount=%i Pulses=%f" % (SDL_Pi_WeatherRack._currentWindSpeed, 
                                                                                                    SDL_Pi_WeatherRack._shortestWindSwitchPulse, 
                                                                                                    SDL_Pi_WeatherRack._windSwitchPulses, 
@@ -286,6 +263,8 @@ class SDL_Pi_WeatherRack:
                                                                                                    )
             SDL_Pi_WeatherRack._windSwitchPulses = 0
             SDL_Pi_WeatherRack._samplingStartTime = recentTimeInMicros()
+        else:
+            return SDL_Pi_WeatherRack._currentWindSpeed
          
         
     def current_wind_speed(self):  # in milliseconds
@@ -307,7 +286,9 @@ class SDL_Pi_WeatherRack:
         except ZeroDivisionError:
             return 0
         
-
+    def reset_rain_total(self):
+        SDL_Pi_WeatherRack._currentRainCount = 0
+        
     def get_current_rain_total(self):
         rain_amount = 0.2794  * float(SDL_Pi_WeatherRack._currentRainCount) / SDL_RAIN_BUCKET_CLICKS
         SDL_Pi_WeatherRack._currentRainCount = 0x00
@@ -318,11 +299,11 @@ class SDL_Pi_WeatherRack:
     def serviceInterruptAnem(self, channel):
         # print "Anem Interrupt Service Routine"
         recTimeInMicros = recentTimeInMicros()
-        pulseInterval = recTimeInMicros - SDL_Pi_WeatherRack._lastWindPulseTime
+        samplingInterval = recTimeInMicros - SDL_Pi_WeatherRack._lastWindPulseTime
         SDL_Pi_WeatherRack._lastWindPulseTime = recTimeInMicros
         SDL_Pi_WeatherRack._windSwitchPulses += 1
-        if pulseInterval < SDL_Pi_WeatherRack._shortestWindSwitchPulse:
-            SDL_Pi_WeatherRack._shortestWindSwitchPulse = pulseInterval
+        if samplingInterval < SDL_Pi_WeatherRack._shortestWindSwitchPulse:
+            SDL_Pi_WeatherRack._shortestWindSwitchPulse = samplingInterval
 
     def serviceInterruptRain(self, channel):
 #        print 'Rain Interrupt Service Routine'
