@@ -30,7 +30,7 @@ import math
 from SDL_Adafruit_ADS1x15 import ADS1x15
 import RPi.GPIO as GPIO
 
-GPIO.setwarnings(False)
+#GPIO.setwarnings(False)
 
 from datetime import *
 
@@ -112,7 +112,7 @@ def calculateMedian(list):
 
 class SDL_Pi_WeatherRack:
     GPIO.setmode(GPIO.BCM)
-    GPIO.setwarnings(False)
+#    GPIO.setwarnings(False)
 
     # instance variables
     _pinAnem = 0x00
