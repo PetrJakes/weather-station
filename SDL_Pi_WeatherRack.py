@@ -58,41 +58,41 @@ def AveragingWindDirections(listOfAngles):
         cosSum += math.cos(math.radians(angle))
     return ((math.degrees(mat.atan2(sinSum, cosSum)) + 360) % 360)
 
-def voltageToDegrees(value, lastKnownDirection):    
+def voltageToDegrees(voltage, lastKnownDirection):    
 
-    if value >= 3.63433 and value < 3.93894:
+    if voltage >= 3.63433 and voltage < 3.93894:
         return 0.0
-    if value >= 1.6925 and value < 2.11744:
+    if voltage >= 1.6925 and voltage < 2.11744:
         return 22.5
-    if value >= 2.11744 and value < 2.58979:
+    if voltage >= 2.11744 and voltage < 2.58979:
         return 45
-    if value >= 0.36541 and value < 0.43186:        
+    if voltage >= 0.36541 and voltage < 0.43186:        
         return 67.5
-    if value >= 0.43186 and value < 0.53555:
+    if voltage >= 0.43186 and voltage < 0.53555:
         return 90.0
-    if value >= 0.2108 and value < 0.3654:
+    if voltage >= 0.2108 and voltage < 0.3654:
         return 112.5
-    if value >= 0.7591 and value < 1.04761:
+    if voltage >= 0.7591 and voltage < 1.04761:
         return 135.0
-    if value >= 0.53555 and value < 0.7591:
+    if voltage >= 0.53555 and voltage < 0.7591:
         return 157.5
-    if value >= 1.29823 and value < 1.6925:
+    if voltage >= 1.29823 and voltage < 1.6925:
         return 180
-    if value >= 1.04761 and value < 1.29823:
+    if voltage >= 1.04761 and voltage < 1.29823:
         return 202.5
-    if value >= 3.00188 and value < 3.25418:
+    if voltage >= 3.00188 and voltage < 3.25418:
         return 225
-    if value >= 2.58979 and value < 3.00188:
+    if voltage >= 2.58979 and voltage < 3.00188:
         return 247.5
-    if value >= 4.47391 and value < 4.80769:
+    if voltage >= 4.47391 and voltage < 4.80769:
         return 270.0
-    if value >= 3.93894 and value < 4.18656:
+    if voltage >= 3.93894 and voltage < 4.18656:
         return 292.5
-    if value >= 4.18656 and value < 4.47391:
+    if voltage >= 4.18656 and voltage < 4.47391:
         return 315.0
-    if value >= 3.25418 and value < 3.63433:
+    if voltage >= 3.25418 and voltage < 3.63433:
         return 337.5    
-    return lastKnownDirection  # return previous value if not found
+    return lastKnownDirection  # return previous voltage if not found
 
 def recentTimeInMicros():
     # return current Time In Microseconds

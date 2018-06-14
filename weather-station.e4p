@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2018-06-14, 01:21:04 -->
+<!-- Saved: 2018-06-14, 18:57:50 -->
 <!-- Copyright (C) 2018 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -20,6 +20,7 @@
     <Source>SDL_Pi_WeatherRackTest.py2</Source>
     <Source>bme280.py</Source>
     <Source>config.py</Source>
+    <Source>readAnemoPulses.py</Source>
     <Source>readPulses.py</Source>
     <Source>weather.py</Source>
   </Sources>
