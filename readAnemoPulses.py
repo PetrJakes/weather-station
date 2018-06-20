@@ -83,6 +83,7 @@ class Anemometer:
         self.meanWind = averageRpm
     
     def _gustWind(self):
+        # find the 3 second average maximum over the whole rpsQueue
         gusts=[]
         for i in range(len(self.rpsQueue)):
             try:

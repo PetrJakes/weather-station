@@ -24,7 +24,7 @@ try:
     while True:  
         ran=random.randint(MIN_FREQUENCY, MAX_FREQUENCY)
         p.ChangeFrequency(ran)
-        ran = random.randint(5,20)
+        ran = random.randint(5,120)
         time.sleep(ran)                 # wait randomly        
   
 except KeyboardInterrupt:          # trap a CTRL+C keyboard interrupt  
