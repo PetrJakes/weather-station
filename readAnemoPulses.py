@@ -6,12 +6,6 @@ import time
 
 
 class Anemometer:    
-    GPIO.setmode(GPIO.BCM)     
-    GPIO.setup(23, GPIO.OUT)
-    # create an object q for PWM on port pinPwm at 0.33 Hertz  (wind speed sampling frequency)
-#    q = GPIO.PWM(23, 1.0/3) 
-    q = GPIO.PWM(23, 1) 
-    q.start(50)  # start the PWM on 50 percent duty cycle  
     
     def __init__(self,                     
                     windHistoryInterval=60*10,                     
@@ -30,15 +24,21 @@ class Anemometer:
         self.MIN_RPM=minRPM
         self.MAX_RPM=maxRPM
         self.MAX_RPS=maxRPM/60
-        self.meanWind= 0
-        self.recentWindGust=0
+        self.meanWindRpm= 0
+        self.recentWindGustRpm=0
         
+        GPIO.setmode(GPIO.BCM)     
         GPIO.setup(PIN_ANEM, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(PIN_ANEM, GPIO.RISING, callback=self._pulseRecorder) 
         
         GPIO.setup(PIN_RPS_RECORDER, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(PIN_RPS_RECORDER, GPIO.RISING, callback=self._rpsQueueRecorder) 
-        ##        
+        
+        GPIO.setup(23, GPIO.OUT)
+        # create an object q for PWM on port pinPwm at 4 Hertz  (0.25 s wind speed sampling frequency)
+        self.q = GPIO.PWM(23, 4)
+        self.q.start(50)  # start the PWM on 50 percent duty cycle
+
 
     def _pulseRecorder(self, channel):        
         # pulses from anemometer are recorded as timestamps
@@ -51,7 +51,7 @@ class Anemometer:
         if len(self.recentPulsesQueue)>1:            
             numberOfRotation=len(self.recentPulsesQueue)/self.PULSES_PER_REVOLUTION  
             dutyTime=(self.recentPulsesQueue[-1]- self.recentPulsesQueue[0])
-#            print "duty time:",  dutyTime
+            print "duty time:",  dutyTime
             averageRps = numberOfRotation/dutyTime
             if averageRps > self.MAX_RPS: 
                 # to eliminate false short pulses
@@ -78,12 +78,12 @@ class Anemometer:
     def _meanWind(self):
         try:
             averageRpm=(sum(self.rpsQueue) / len(self.rpsQueue))*60
+            self.meanWindRpm = averageRpm
         except ZeroDivisionError as e:            
-            self.meanWind = 0
-        self.meanWind = averageRpm
+            self.meanWindRpm = 0
     
     def _gustWind(self):
-        # find the 3 second average maximum over the whole rpsQueue
+        # find rpsQueue 3 second average maximum 
         gusts=[]
         for i in range(len(self.rpsQueue)):
             try:
@@ -91,9 +91,9 @@ class Anemometer:
             except IndexError as e:
                 pass
         if gusts:
-            self.recentWindGust=max(gusts)
+            self.recentWindGustRpm=max(gusts)*60
         else:
-            self.recentWindGust=0
+            self.recentWindGustRpm=0
 
 def main():
     PIN_ANEMO=7
@@ -103,8 +103,8 @@ def main():
     an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO)
     try:
        while True:
-            print an.meanWind,  "RPM"
-            print an.recentWindGust
+            print an.meanWindRpm,  "RPM"
+            print an.recentWindGustRpm
 #            try:
 #                avg = an.averageRpm()
 #                print "average rpm:", avg
