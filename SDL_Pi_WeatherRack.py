@@ -14,6 +14,16 @@
 
 # imports
 
+"""
+    The wind direction is measured with a vane that has an undamped wavelength
+    of 5 m, a damping ratio of 0.3, and a 7 bit digital encoder that is 
+    sampled every second. 
+    Averages and standard deviations are computed over 10 min intervals, where
+    successive samples are checked for continuity. If two successive samples 
+    differ by more than 180°, the difference is decreased by adding or 
+    subtracting 360° from the second sample.
+"""
+
 try:
     # Check for user imports
     try:
