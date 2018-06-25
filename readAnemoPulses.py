@@ -1,13 +1,176 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
+#  Partialy used code from 
+#  SDL_Pi_WeatherRack.py - Raspberry Pi Python Library for SwitchDoc Labs WeatherRack.
+#  SparkFun Weather Station Meters
+#  Argent Data Systems
+#  Created by SwitchDoc Labs February 13, 2015
+
 from __future__ import division
 import RPi.GPIO as GPIO
 import time
+from SDL_Adafruit_ADS1x15 import ADS1x15
+import math
+from threading import Thread
+import I2C_LCD_driver
+import bme280
+
+ADS1115 = 1
+REFERENTIAL_VOLTAGE=5000 # 5V
 
 
-class Anemometer:
+class WindVane(object):
+    """ Class for reading voltage from wind wane 
+    
+    WMO requirements for wind wane measurment (see below) will be fulfiled
+    using function to calculate an "average (mean) of an angle" 
+   
+   ********* WMO requirements ***************************************    
+    WMO GUIDE TO METEOROLOGICAL INSTRUMENTS AND METHODS OF OBSERVATION 
+    https://library.wmo.int/opac/doc_num.php?explnum_id=3177
+    https://library.wmo.int/pmb_ged/wmo_8_en-2012.pdf
+    
+    Wind direction should be reported in degrees to the nearest 10°, 
+    using a 01 ... 36 code (for example, code 2 means that the wind direction
+    is between 15 and 25°), and should represent an average over 10 min.
+    Wind direction is defined as the direction from which the wind blows, and is
+    measured clockwise from geographical north, namely, true north.  
+    
+    The wind direction is measured with a vane that has 7 bit digital encoder
+    that is sampled every second. 
+    Averages and standard deviations are computed over 10 min intervals, where
+    successive samples are checked for continuity. If two successive samples 
+    differ by more than 180°, the difference is decreased by adding or 
+    subtracting 360° from the second sample.
+    """
+    def __init__(self):
+        ADS1115 = 1  # 16-bit ADC
+
+        # Select the gain
+        self.gain = 6144  # +/- 6.144V
+        # self.gain = 4096  # +/- 4.096V
+
+        # Select the sample rate
+        self.sps = 250  # 250 samples per second
+
+        # Initialise the ADC using the default mode (use default I2C address)
+        # Set this to ADS1015 or ADS1115 depending on the ADC you are using!
+        self.ads1115 = ADS1x15(ic=ADS1115, address=0x48)        
+        
+        self._currentWindDirection=0
+        self._windDirectionQueue=[]
+        self._windDirectionHistoryInterval=60*10 # 10 minutes
+        self.readWindDirection()
+        
+        # start wind reading thread
+        self.th=Thread(target=self.startReadingWind)
+        self.th.daemon = True
+        self.th.start()
+        
+        
+    def startReadingWind(self):
+        try:
+            while True:
+                self.readWindDirection()
+                time.sleep(1)
+        except KeyboardInterrupt:            
+            return
+        
+    def recentWindDirectionVoltage(self):
+        # for some positions the wind vane returns very small voltage diferences 
+        # 112.5° => 0.321V voltage difference 0.088V comparing to the voltage for 67.5°
+        #  67.5° => 0.409V voltage difference 0.045V comparing to the voltage for 90.0°
+        #  90.0° => 0.455V
+        # because of that, we have to measure as precise as possible
+        # to achive this goal we measure Vcc voltage on the AIN0 pin (referential voltage) 
+        # using this value we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin                
+        
+        # multiple readings  will supperes wind vane turbulent unstability moves
+        
+        # first reading returns wrong value sometimes, lets read it twice
+        self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps) 
+        vaneVoltage = self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps)  # AIN1 wired to wind vane voltage divider
+        
+        # first reading returns wrong value sometimes, lets read it twice
+        self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage
+        vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage    
+        calculatedVoltage = (vaneVoltage * (REFERENTIAL_VOLTAGE/vcc))
+        return calculatedVoltage/1000, vaneVoltage/1000, vcc/1000
+        
+        
+    def readWindDirection(self):
+        calculatedVoltage, vaneVoltage, vcc= self.recentWindDirectionVoltage()
+        self._currentWindDirection = self.voltageToDegrees(calculatedVoltage, self._currentWindDirection)
+#        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  self._currentWindDirection)        
+        self.maintainWindDirectionQueue()
+        return self.averageWindDirection
+        
+        
+    def maintainWindDirectionQueue(self):
+        self._windDirectionQueue.append(self._currentWindDirection)
+        queueLenght = len(self._windDirectionQueue)        
+        if queueLenght > self._windDirectionHistoryInterval:
+            diff = queueLenght - self._windDirectionHistoryInterval
+            del self._windDirectionQueue[:diff]            
+        # Wind direction should be reported in degrees to the nearest 10°
+        self.averageWindDirection = round(self.averagWindDirections(self._windDirectionQueue), -1)
+            
+        
+    def voltageToDegrees(self, voltage, lastKnownDirection):
+        if voltage >= 3.63433 and voltage < 3.93894:
+            return 0.0
+        if voltage >= 1.6925 and voltage < 2.11744:
+            return 22.5
+        if voltage >= 2.11744 and voltage < 2.58979:
+            return 45
+        if voltage >= 0.36541 and voltage < 0.43186:        
+            return 67.5
+        if voltage >= 0.43186 and voltage < 0.53555:
+            return 90.0
+        if voltage >= 0.2108 and voltage < 0.3654:
+            return 112.5
+        if voltage >= 0.7591 and voltage < 1.04761:
+            return 135.0
+        if voltage >= 0.53555 and voltage < 0.7591:
+            return 157.5
+        if voltage >= 1.29823 and voltage < 1.6925:
+            return 180
+        if voltage >= 1.04761 and voltage < 1.29823:
+            return 202.5
+        if voltage >= 3.00188 and voltage < 3.25418:
+            return 225
+        if voltage >= 2.58979 and voltage < 3.00188:
+            return 247.5
+        if voltage >= 4.47391 and voltage < 4.80769:
+            return 270.0
+        if voltage >= 3.93894 and voltage < 4.18656:
+            return 292.5
+        if voltage >= 4.18656 and voltage < 4.47391:
+            return 315.0
+        if voltage >= 3.25418 and voltage < 3.63433:
+            return 337.5    
+        return lastKnownDirection  # return previous voltage if not found
+        
+    def averagWindDirections(self, listOfAngles):
+        sinSum = 0
+        cosSum = 0
+        for angle in listOfAngles:
+            sinSum += math.sin(math.radians(angle))
+            cosSum += math.cos(math.radians(angle))
+        return ((math.degrees(math.atan2(sinSum, cosSum)) + 360) % 360)        
+
+class Anemometer(object):
     """Class for reading pulses from the cup rotating anemometer
 
+    puls samples has to be recorded/calculated very precisely, because of that: 
+    - 4Hz pwm pulses (4 pulses per second) are generated on the output pin
+    - pwm signal is wired to the input pin
+    - when a rising edge is detected on the input pin, regardless of whatever
+      else is happening in the program, the function callback to calculate 
+      pulses per second will be run
+       
+    ***********************************************************
     pulses are recorded according to the 
     WMO GUIDE TO METEOROLOGICAL INSTRUMENTS AND METHODS OF OBSERVATION 
     https://library.wmo.int/opac/doc_num.php?explnum_id=3177
@@ -35,10 +198,11 @@ class Anemometer:
     Wind speed should be reported to a resolution of 0.5 m/s or in knots 
     (0.515 m/s) to the nearest unit, and should represent, for synoptic reports,
     an average over 10 min.  
-
+    * round(45.1*2)/2
     
     Calibration of the anemometer using GPS is well described here:
     http://www.yoctopuce.com/EN/article/how-to-measure-wind-part-1
+    * google "libreoffice trendline to a chart equation"
 
     - **parameters**, **types**, **return** and **return types**::
 
@@ -58,9 +222,9 @@ class Anemometer:
                     minRPM=0,                      
                     maxRPM=3000,
                     SAMPLING_FREQUENCY=4, # 4Hz (input signals are sampled 4 times per second)
+                    PULSES_TO_MPS_QUOTIENT = 1, 
                     CALIBRATION_QUOTIENT = 1
                     ):
-        
         
         self.rpsQueue=[]
         self.gustQueue=[]
@@ -77,6 +241,8 @@ class Anemometer:
         self.CALIBRATION_QUOTIENT=CALIBRATION_QUOTIENT
         
         # anemometer pulses generator input
+        # when a rising edge is detected on port PIN_ANEM, regardless of whatever
+        # else is happening in the program, the function callback will be run
         GPIO.setmode(GPIO.BCM)     
         GPIO.setup(PIN_ANEM, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
         GPIO.add_event_detect(PIN_ANEM, GPIO.RISING, callback=self._pulseRecorder) 
@@ -146,22 +312,33 @@ def main():
     WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
     PULSES_PER_REVOLUTION = 2
     PIN_ANEMO=7
-    
+    vane=WindVane()    
     an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO)
+    mylcd = I2C_LCD_driver.lcd()
+    
+    print "===================================="
     try:
-       while True:
+       while True:                        
             print an.meanWindRpm,  "mean RPM"
             print an.recentWindGustRpm,  "RPM gust"
             print an.instantaneousRpm, "instanteneous RPM"
-#            try:
-#                avg = an.averageRpm()
-#                print "average rpm:", avg
-#                
-#            except Exception as e:
-#                print e
-##                print "*****main*****"
-##                print e
-            time.sleep(3)
+#                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
+
+            print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
+            temperature,pressure,humidity,psea = bme280.readBME280All()
+            print "Temperature        : ", temperature, "C"
+            print "Humidity           : ", humidity, "%"
+            print "Pressure           : ", pressure, "hPa"
+            print "Pressure above sea : ", psea, "hPa"
+            print "Altitude above sea : ", bme280.altitude, "m"
+#            mylcd.lcd_clear()
+            mylcd.lcd_display_string('Wind = %0.0f m/s ' % an.meanWindRpm, 1)
+            mylcd.lcd_display_string('Gust = %0.0f m/s ' % an.recentWindGustRpm, 2)
+            time.sleep(4)            
+            mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
+            mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
+#            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+            time.sleep(4)
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
         GPIO.cleanup()          # when your program exits, tidy up after yourself  
     print an.rpsQueue[-1]

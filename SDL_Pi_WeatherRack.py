@@ -14,16 +14,6 @@
 
 # imports
 
-"""
-    The wind direction is measured with a vane that has an undamped wavelength
-    of 5 m, a damping ratio of 0.3, and a 7 bit digital encoder that is 
-    sampled every second. 
-    Averages and standard deviations are computed over 10 min intervals, where
-    successive samples are checked for continuity. If two successive samples 
-    differ by more than 180°, the difference is decreased by adding or 
-    subtracting 360° from the second sample.
-"""
-
 try:
     # Check for user imports
     try:
@@ -32,6 +22,20 @@ try:
         import config
 except:
     import NoWPAConfig.py as config
+    
+"""
+# config contains
+# device present global variables
+
+AS3935_Present = False
+DS3231_Present = False
+BMP280_Present = False
+FRAM_Present = False
+HTU21DF_Present = False
+AM2315_Present = False
+ADS1015_Present = False
+ADS1115_Present = False
+"""
 
 import sys
 import time as time_
@@ -155,7 +159,7 @@ class SDL_Pi_WeatherRack:
 
         # when a rising edge is detected on port pinAnem or pinRain, regardless of whatever
         # else is happening in the program, the function callback will be run
-        # bouncetime (optional) minimum time between two callbacks in milliseconds
+        
         GPIO.add_event_detect(pinAnem, GPIO.RISING, callback=self.serviceInterruptAnem) 
         GPIO.add_event_detect(pinRain, GPIO.RISING, callback=self.serviceInterruptRain)
         ADS1015 = 0x00  # 12-bit ADC
@@ -237,7 +241,7 @@ class SDL_Pi_WeatherRack:
                 vcc=calculateMedian(vcc)    
             else:
                 # first reading returns wrong value sometimes, lets read it twice
-                self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps) 
+                self.ads1015.readADCSingleEnded(chanel=1, pga=self.gain, sps=self.sps) 
                 vaneVoltage = self.ads1015.readADCSingleEnded(0x01, self.gain, self.sps)  # AIN1 wired to wind vane voltage divider
             # first reading returns wrong value sometimes, lets read it twice
             self.ads1015.readADCSingleEnded(0x00, self.gain, self.sps)  # AIN0 wired to Vcc - referential voltage
