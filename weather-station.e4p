@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2018-06-14, 23:50:35 -->
+<!-- Saved: 2018-06-27, 11:55:22 -->
 <!-- Copyright (C) 2018 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -21,7 +21,6 @@
     <Source>bme280.py</Source>
     <Source>config.py</Source>
     <Source>readAnemoPulses.py</Source>
-    <Source>weather.py</Source>
   </Sources>
   <Others>
     <Other>README.md</Other>

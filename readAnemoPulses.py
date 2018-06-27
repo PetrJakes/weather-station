@@ -15,6 +15,7 @@ import math
 from threading import Thread
 import I2C_LCD_driver
 import bme280
+import datetime
 
 ADS1115 = 1
 REFERENTIAL_VOLTAGE=5000 # 5V
@@ -194,6 +195,7 @@ class Anemometer(object):
     (m/s, knots).
     1 meter/second is equal to 1.9438444924406 knot.
     1 knot is equal to 0.51444444444444 m/s
+    1 knot = 1 nautical mile/hour = 1.85200 kilometer/hour
     
     Wind speed should be reported to a resolution of 0.5 m/s or in knots 
     (0.515 m/s) to the nearest unit, and should represent, for synoptic reports,
@@ -216,7 +218,7 @@ class Anemometer(object):
     def __init__(self,                     
                     windHistoryInterval=60*10, # 10 minutes                     
                     pulsesPerRevolution=2,
-                    PIN_ANEM=7, 
+                    PIN_ANEMO_PULSES_INPUT=7, 
                     PIN_SAMPLING_PULSES_OUTPUT=23, 
                     PIN_RPS_SAMPLER_INPUT=24, 
                     minRPM=0,                      
@@ -241,11 +243,11 @@ class Anemometer(object):
         self.CALIBRATION_QUOTIENT=CALIBRATION_QUOTIENT
         
         # anemometer pulses generator input
-        # when a rising edge is detected on port PIN_ANEM, regardless of whatever
+        # when a rising edge is detected on port PIN_ANEMO_PULSES_INPUT, regardless of whatever
         # else is happening in the program, the function callback will be run
         GPIO.setmode(GPIO.BCM)     
-        GPIO.setup(PIN_ANEM, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(PIN_ANEM, GPIO.RISING, callback=self._pulseRecorder) 
+        GPIO.setup(PIN_ANEMO_PULSES_INPUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
+        GPIO.add_event_detect(PIN_ANEMO_PULSES_INPUT, GPIO.RISING, callback=self._pulseRecorder) 
         
         # sampling frequency generator input
         GPIO.setup(PIN_RPS_SAMPLER_INPUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
@@ -307,18 +309,41 @@ class Anemometer(object):
     
     def _gustWind(self):
         self.recentWindGustRpm=max(self.gustQueue)*60
+        
+def birthday():
+    # Easter Egg to display Happy Brithday for your friends on LCD display
+    birthdayDict={                      
+                      "February-9":"Jang Jungyong", 
+                      "February-12":"Mek", 
+                      "February-13":"Sabu",
+                      "April-11":"Domin", 
+                      "May-24": "Jeff",                      
+                      "June-3":"Kim Heon-Su",
+                      "June-10":"Son",
+                      "October-1":"Petr"
+                      }
+    d = datetime.date.today()
+    try:
+        return birthdayDict[d.strftime('%B-%d')]
+    except KeyError:
+        pass
     
 def main():
     WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
     PULSES_PER_REVOLUTION = 2
-    PIN_ANEMO=7
+    PIN_ANEMO_PULSES_INPUT=7
     vane=WindVane()    
-    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO)
-    mylcd = I2C_LCD_driver.lcd()
+    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT)
+    mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
     
     print "===================================="
     try:
-       while True:                        
+        while True:
+            name=birthday()
+            if name:                
+                mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
+                mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
+                time.sleep(5)
             print an.meanWindRpm,  "mean RPM"
             print an.recentWindGustRpm,  "RPM gust"
             print an.instantaneousRpm, "instanteneous RPM"
@@ -332,8 +357,8 @@ def main():
             print "Pressure above sea : ", psea, "hPa"
             print "Altitude above sea : ", bme280.altitude, "m"
 #            mylcd.lcd_clear()
-            mylcd.lcd_display_string('Wind = %0.0f m/s ' % an.meanWindRpm, 1)
-            mylcd.lcd_display_string('Gust = %0.0f m/s ' % an.recentWindGustRpm, 2)
+            mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindRpm, 1)
+            mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentWindGustRpm, 2)
             time.sleep(4)            
             mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
             mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
