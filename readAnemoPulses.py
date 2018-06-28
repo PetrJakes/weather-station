@@ -216,21 +216,21 @@ class Anemometer(object):
           :rtype: the return type description"""    
     
     def __init__(self,                     
-                    windHistoryInterval=60*10, # 10 minutes                     
+                    WIND_HISTORY_INTERVAL=60*10, # 10 minutes                     
                     pulsesPerRevolution=2,
                     PIN_ANEMO_PULSES_INPUT=7, 
                     PIN_SAMPLING_PULSES_OUTPUT=23, 
                     PIN_RPS_SAMPLER_INPUT=24, 
-                    minRPM=0,                      
-                    maxRPM=3000,
                     SAMPLING_FREQUENCY=4, # 4Hz (input signals are sampled 4 times per second)
                     PULSES_TO_MPS_QUOTIENT = 1, 
-                    CALIBRATION_QUOTIENT = 1
+                    CALIBRATION_QUOTIENT = 1, 
+                    minRPM=0,                      
+                    maxRPM=3000,
                     ):
         
         self.rpsQueue=[]
         self.gustQueue=[]
-        self.WIND_HISTORY_INTERVAL=windHistoryInterval        
+        self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
         self.PULSES_PER_REVOLUTION=float(pulsesPerRevolution)                
         self.MIN_RPM=minRPM
         self.MAX_RPM=maxRPM        
@@ -351,7 +351,7 @@ def main():
 
             print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
             temperature,pressure,humidity,psea = bme280.readBME280All()
-            print "Temperature        : ", temperature, "C"
+            print "Temperature        : ", temperature, "°C"
             print "Humidity           : ", humidity, "%"
             print "Pressure           : ", pressure, "hPa"
             print "Pressure above sea : ", psea, "hPa"
