@@ -8,7 +8,6 @@
 #  Created by SwitchDoc Labs February 13, 2015
 
 from __future__ import division
-import RPi.GPIO as GPIO
 import time
 from SDL_Adafruit_ADS1x15 import ADS1x15
 import math
@@ -16,6 +15,7 @@ from threading import Thread
 import I2C_LCD_driver
 import bme280
 import datetime
+import pigpio
 
 ADS1115 = 1
 REFERENTIAL_VOLTAGE=5000 # 5V
@@ -228,8 +228,8 @@ class Anemometer(object):
                     maxRPM=3000,
                     ):
         
-        self.rpsQueue=[]
-        self.gustQueue=[]
+        self.rpsQueue=[0]
+        self.gustQueue=[0]
         self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
         self.PULSES_PER_REVOLUTION=float(pulsesPerRevolution)                
         self.MIN_RPM=minRPM
@@ -237,33 +237,27 @@ class Anemometer(object):
         self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY
         self.meanWindRpm= 0
         self.recentWindGustRpm=0
-        self.instantaneousRpm=0
-        self._pulseCounter=0
+        self.instantaneousRpm=0        
+        self._lastPulsesCount=0
         self.gustInterval = 3*SAMPLING_FREQUENCY         
         self.CALIBRATION_QUOTIENT=CALIBRATION_QUOTIENT
+        pi=pigpio.pi()
+        
         
         # anemometer pulses generator input
         # when a rising edge is detected on port PIN_ANEMO_PULSES_INPUT, regardless of whatever
         # else is happening in the program, the function callback will be run
-        GPIO.setmode(GPIO.BCM)     
-        GPIO.setup(PIN_ANEMO_PULSES_INPUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(PIN_ANEMO_PULSES_INPUT, GPIO.RISING, callback=self._pulseRecorder) 
+        pi.set_pull_up_down(PIN_ANEMO_PULSES_INPUT, pigpio.PUD_DOWN)
+        self.cb1=pi.callback(user_gpio=PIN_ANEMO_PULSES_INPUT, edge=pigpio.EITHER_EDGE)
         
         # sampling frequency generator input
-        GPIO.setup(PIN_RPS_SAMPLER_INPUT, GPIO.IN, pull_up_down=GPIO.PUD_DOWN)
-        GPIO.add_event_detect(PIN_RPS_SAMPLER_INPUT, GPIO.RISING, callback=self._rpsQueueRecorder) 
+        pi.set_pull_up_down(PIN_RPS_SAMPLER_INPUT, pigpio.PUD_DOWN)
+        pi.callback(user_gpio=PIN_RPS_SAMPLER_INPUT, edge=pigpio.RISING_EDGE, func=self._rpsQueueRecorder)
         
         # sampling frequency generator output
-        GPIO.setup(PIN_SAMPLING_PULSES_OUTPUT, GPIO.OUT)
-        # create an object q for PWM on port pinPwm at 4 Hertz  (0.25 s sampling frequency)
-        self.q = GPIO.PWM(PIN_SAMPLING_PULSES_OUTPUT, SAMPLING_FREQUENCY)
-        self.q.start(50)  # start PWM pulses on 50 percent duty cycle
+        pi.hardware_PWM(18, SAMPLING_FREQUENCY, 500000)# start PWM pulses: Broadcom pin 18, 4Hz, 50% dutycycle 
 
-
-    def _pulseRecorder(self, channel):        
-        self._pulseCounter+=1
-    
-    def _rpsQueueRecorder(self, channel):
+    def _rpsQueueRecorder(self, gpio, level, tick):
         # every time sampling signal occures, average RPS is calculated
         # and appended to the RPS Queue
         self._maintainPulsesCounter()
@@ -275,8 +269,15 @@ class Anemometer(object):
         self.instantaneousRpm = self.rpsQueue[-1]*60
 
     def _maintainPulsesCounter(self):
-        self._pulsesCount = self._pulseCounter
-        self._pulseCounter=0
+        pulsesSinceStart = self.cb1.tally()
+        self._pulsesCount = pulsesSinceStart-self._lastPulsesCount
+        self._lastPulsesCount = pulsesSinceStart
+        
+    def _appendRpsQueue(self):
+        # calculate number of pulses per second
+        pulsesPerSecond = self._pulsesCount * self.SAMPLING_FREQUENCY
+        rps = pulsesPerSecond / self.PULSES_PER_REVOLUTION        
+        self.rpsQueue.append(rps)
 
     def _maintainQueues(self):
         queueLenght = len(self.rpsQueue)
@@ -285,12 +286,6 @@ class Anemometer(object):
             diff = queueLenght - windHistoryInterval
             del self.rpsQueue[:diff]
             del self.gustQueue[:diff]
-            
-    def _appendRpsQueue(self):
-        # calculate number of pulses per second
-        pulsesPerSecond = self._pulsesCount * self.SAMPLING_FREQUENCY
-        rps = pulsesPerSecond / self.PULSES_PER_REVOLUTION
-        self.rpsQueue.append(rps)
             
     def _apendGustQueue(self):
         try:
@@ -334,16 +329,15 @@ def main():
     PIN_ANEMO_PULSES_INPUT=7
     vane=WindVane()    
     an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT)
-    mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
+    try:
+        mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
+    except IOError as e:
+        print e
+        
     
     print "===================================="
     try:
         while True:
-            name=birthday()
-            if name:                
-                mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
-                mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
-                time.sleep(5)
             print an.meanWindRpm,  "mean RPM"
             print an.recentWindGustRpm,  "RPM gust"
             print an.instantaneousRpm, "instanteneous RPM"
@@ -356,17 +350,25 @@ def main():
             print "Pressure           : ", pressure, "hPa"
             print "Pressure above sea : ", psea, "hPa"
             print "Altitude above sea : ", bme280.altitude, "m"
-#            mylcd.lcd_clear()
-            mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindRpm, 1)
-            mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentWindGustRpm, 2)
-            time.sleep(4)            
-            mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
-            mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
-#            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+            try:
+    #            mylcd.lcd_clear()
+                name=birthday()
+                if name:                
+                    mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
+                    mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
+                    time.sleep(5)
+                mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindRpm, 1)
+                mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentWindGustRpm, 2)
+                time.sleep(4)            
+                mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
+                mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
+    #            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+            except UnboundLocalError as e:
+                print e
             time.sleep(4)
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
-        GPIO.cleanup()          # when your program exits, tidy up after yourself  
-    print an.rpsQueue[-1]
+        pass
+    
 
 
 

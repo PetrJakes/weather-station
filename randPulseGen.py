@@ -11,7 +11,7 @@ MAX_FREQUENCY = 70 # pulses per second
 GPIO.setmode(GPIO.BCM) # GPIO Numbering Mode Broadcom
 
 GPIO.setup(pinPwm, GPIO.OUT)
-p = GPIO.PWM(pinPwm, 50) # create an object p for PWM on port pinPwm at 50 Hertz  
+p = GPIO.PWM(pinPwm, 1) # create an object p for PWM on port pinPwm at 50 Hertz  
 p.start(50)  # start the PWM on 50 percent duty cycle  
 #p.ChangeFrequency(100)  # change the frequency to 100 Hz (floats also work) e.g. 100.5, 5.2  
 #p.ChangeDutyCycle(90)
@@ -22,8 +22,8 @@ p.start(50)  # start the PWM on 50 percent duty cycle
 
 try:  
     while True:  
-        ran=random.randint(MIN_FREQUENCY, MAX_FREQUENCY)
-        p.ChangeFrequency(ran)
+#        ran=random.randint(MIN_FREQUENCY, MAX_FREQUENCY)
+#        p.ChangeFrequency(ran)
         ran = random.randint(5,120)
         time.sleep(ran)                 # wait randomly        
   
