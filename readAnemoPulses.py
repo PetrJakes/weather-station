@@ -214,62 +214,84 @@ class Anemometer(object):
           :type pulsesPerRevolution: int
           :return: wind speed in knots, m/s, wind gust in knots, m/s
           :rtype: the return type description"""    
+          
+    warning = """
+            The GPIO for hardware_PWM ust be one of the following:
+            12  PWM channel 0  All models but A and B
+            13  PWM channel 1  All models but A and B
+            18  PWM channel 0  All models
+            19  PWM channel 1  All models but A and B
+            
+            40  PWM channel 0  Compute module only
+            41  PWM channel 1  Compute module only
+            45  PWM channel 1  Compute module only
+            52  PWM channel 0  Compute module only
+            53  PWM channel 1  Compute module only
+            """     
     
     def __init__(self,                     
                     WIND_HISTORY_INTERVAL=60*10, # 10 minutes                     
                     pulsesPerRevolution=2,
                     PIN_ANEMO_PULSES_INPUT=7, 
-                    PIN_SAMPLING_PULSES_OUTPUT=23, 
+                    PIN_SAMPLING_PULSES_OUTPUT=18,                                    
                     PIN_RPS_SAMPLER_INPUT=24, 
                     SAMPLING_FREQUENCY=4, # 4Hz (input signals are sampled 4 times per second)
-                    PULSES_TO_MPS_QUOTIENT = 1, 
-                    CALIBRATION_QUOTIENT = 1, 
+                    PULSES_TO_MPS_QUOTIENT = 1,                     
                     minRPM=0,                      
                     maxRPM=3000,
                     ):
         
+        if PIN_SAMPLING_PULSES_OUTPUT!=18:
+            print warning
         self.rpsQueue=[0]
         self.gustQueue=[0]
         self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
         self.PULSES_PER_REVOLUTION=float(pulsesPerRevolution)                
         self.MIN_RPM=minRPM
         self.MAX_RPM=maxRPM        
-        self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY
-        self.meanWindRpm= 0
-        self.recentWindGustRpm=0
-        self.instantaneousRpm=0        
+        self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY                        
         self._lastPulsesCount=0
-        self.gustInterval = 3*SAMPLING_FREQUENCY         
-        self.CALIBRATION_QUOTIENT=CALIBRATION_QUOTIENT
+        self.gustInterval = 3*SAMPLING_FREQUENCY
+        self.meanWindMps=0
+        self.meanWindKmph=0
+        self.meanWindKnots=0
+        self.recentGustMps=0
+        self.recentGustKmph=0
+        self.recentGustKnots=0
+        
+        
         pi=pigpio.pi()
         
         
         # anemometer pulses generator input
         # when a rising edge is detected on port PIN_ANEMO_PULSES_INPUT, regardless of whatever
         # else is happening in the program, the function callback will be run
+        pi.set_mode(PIN_ANEMO_PULSES_INPUT, pigpio.INPUT)
         pi.set_pull_up_down(PIN_ANEMO_PULSES_INPUT, pigpio.PUD_DOWN)
         self.cb1=pi.callback(user_gpio=PIN_ANEMO_PULSES_INPUT, edge=pigpio.EITHER_EDGE)
         
         # sampling frequency generator input
+        pi.set_mode(PIN_RPS_SAMPLER_INPUT, pigpio.INPUT)
         pi.set_pull_up_down(PIN_RPS_SAMPLER_INPUT, pigpio.PUD_DOWN)
-        pi.callback(user_gpio=PIN_RPS_SAMPLER_INPUT, edge=pigpio.RISING_EDGE, func=self._rpsQueueRecorder)
+        pi.callback(user_gpio=PIN_RPS_SAMPLER_INPUT, edge=pigpio.RISING_EDGE, func=self._windCalculator)
         
         # sampling frequency generator output
-        pi.hardware_PWM(18, SAMPLING_FREQUENCY, 500000)# start PWM pulses: Broadcom pin 18, 4Hz, 50% dutycycle 
+        pi.hardware_PWM(PIN_SAMPLING_PULSES_OUTPUT, SAMPLING_FREQUENCY, 500000)# start PWM pulses: Broadcom pin 18, 50% dutycycle 
 
-    def _rpsQueueRecorder(self, gpio, level, tick):
+    def _windCalculator(self, gpio, level, tick):
         # every time sampling signal occures, average RPS is calculated
         # and appended to the RPS Queue
+        # than wind mean speed and gust is calculated 
         self._maintainPulsesCounter()
         self._appendRpsQueue()
         self._apendGustQueue()
         self._maintainQueues()        
         self._meanWind()
         self._gustWind()
-        self.instantaneousRpm = self.rpsQueue[-1]*60
+        self._calculateWind()
 
     def _maintainPulsesCounter(self):
-        pulsesSinceStart = self.cb1.tally()
+        pulsesSinceStart = self.cb1.tally()        
         self._pulsesCount = pulsesSinceStart-self._lastPulsesCount
         self._lastPulsesCount = pulsesSinceStart
         
@@ -279,6 +301,13 @@ class Anemometer(object):
         rps = pulsesPerSecond / self.PULSES_PER_REVOLUTION        
         self.rpsQueue.append(rps)
 
+    def _apendGustQueue(self):
+        try:
+            recentAverageGustRps = sum(self.rpsQueue[-self.gustInterval:])/self.gustInterval            
+        except IndexError as e:
+            recentAverageGustRps = sum(self.rpsQueue)/len(self.rpsQueue)
+        self.gustQueue.append(recentAverageGustRps)
+
     def _maintainQueues(self):
         queueLenght = len(self.rpsQueue)
         windHistoryInterval=self.WIND_HISTORY_INTERVAL*self.SAMPLING_FREQUENCY 
@@ -286,24 +315,33 @@ class Anemometer(object):
             diff = queueLenght - windHistoryInterval
             del self.rpsQueue[:diff]
             del self.gustQueue[:diff]
-            
-    def _apendGustQueue(self):
-        try:
-            recentAverageGust = sum(self.rpsQueue[-self.gustInterval:])/self.gustInterval            
-        except IndexError as e:
-            recentAverageGust = sum(self.rpsQueue)/len(self.rpsQueue)
-        self.gustQueue.append(recentAverageGust)
 
     def _meanWind(self):
         try:
-            averageRps = sum(self.rpsQueue) / len(self.rpsQueue)
-            averageRpm = averageRps*60
-            self.meanWindRpm = averageRpm
+            averageRps = sum(self.rpsQueue) / len(self.rpsQueue)            
+            self.meanWindRps = averageRps
         except ZeroDivisionError as e:            
-            self.meanWindRpm = 0
+            self.meanWindRps = 0
     
     def _gustWind(self):
-        self.recentWindGustRpm=max(self.gustQueue)*60
+        self.recentWindGustRps=max(self.gustQueue)
+        
+    def _calculateWind(self):
+        # equation to calculate wind speed from rotation
+        # f(x)= 0.8080806704x + 0.0580018988
+        # obtainted from LibreOffice Calc 
+        # speed and rpm obtained by anemometer calibration using car and GPS                
+        # Wind speed should be reported to a resolution of 0.5 m/s
+#        meanWindMps = 0.8080806704 * self.meanWindRps + 0.0580018988
+        meanWindMps = round((0.8080806704 * self.meanWindRps + 0.0580018988)*2)/2        
+        self.meanWindMps = meanWindMps
+        self.meanWindKmph = round(meanWindMps * 3.6*2)/2
+        self.meanWindKnots = round(meanWindMps * 1.9438444924574*2)/2
+        
+        recentGustMps = 0.8080806704 * self.recentWindGustRps + 0.0580018988
+        self.recentGustMps=round(recentGustMps*2)/2
+        self.recentGustKmph = round(recentGustMps * 3.6*2)/2
+        self.recentGustKnots = round(recentGustMps * 1.9438444924574*2)/2
         
 def birthday():
     # Easter Egg to display Happy Brithday for your friends on LCD display
@@ -322,13 +360,22 @@ def birthday():
         return birthdayDict[d.strftime('%B-%d')]
     except KeyError:
         pass
+
     
 def main():
     WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
-    PULSES_PER_REVOLUTION = 2
-    PIN_ANEMO_PULSES_INPUT=7
+    PULSES_PER_REVOLUTION = 4
+    
+    PIN_ANEMO_PULSES_INPUT=22
+    
+    PIN_SAMPLING_PULSES_OUTPUT= 18 # Start hardware PWM on a PIN_SAMPLING_PULSES_OUTPUT GPIO (dutycycle 50% set in the code)
+    SAMPLING_FREQUENCY= 1 # Hz (1 Hz means rps is calculated 1 times per second)
+    PIN_RPS_SAMPLER_INPUT= 23 
+       
+    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT, PIN_SAMPLING_PULSES_OUTPUT, PIN_RPS_SAMPLER_INPUT, SAMPLING_FREQUENCY)
+       
     vane=WindVane()    
-    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT)
+    
     try:
         mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
     except IOError as e:
@@ -338,9 +385,12 @@ def main():
     print "===================================="
     try:
         while True:
-            print an.meanWindRpm,  "mean RPM"
-            print an.recentWindGustRpm,  "RPM gust"
-            print an.instantaneousRpm, "instanteneous RPM"
+            print an.meanWindMps,  "m/s"
+            print an.meanWindKmph, "km/h"
+            print an.meanWindKnots, "knot"
+            print an.recentGustMps, "m/s gust"
+            print an.recentGustKmph, "km/h gust"
+            print an.recentGustKnots, "knot gust"            
 #                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
 
             print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
@@ -357,8 +407,8 @@ def main():
                     mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
                     mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
                     time.sleep(5)
-                mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindRpm, 1)
-                mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentWindGustRpm, 2)
+                mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindMps, 1)
+                mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentGustMps, 2)
                 time.sleep(4)            
                 mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
                 mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)

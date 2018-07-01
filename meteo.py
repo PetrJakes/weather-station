@@ -52,6 +52,7 @@ WG_SPOT_NAME = "Foersterova 449"
 wgSalt = "has to refresh before upload"
 
 def wgString(ID=WG_STATION_ID, KEY=WG_API_PASSWORD, windDeg=0, windSpeed=10,  windGust=15, temp=24, hum=45, pressure=1000 ):
+    # https://stations.windguru.cz/upload_api.php
     wgSalt= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     # hash (required) MD5 hash of a string that consists of 
     # salt, uid and station password concatenated together (in this order, see example below)

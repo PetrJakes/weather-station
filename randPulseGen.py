@@ -4,14 +4,14 @@ import RPi.GPIO as GPIO
 import random
 import time
 
-pinPwm = 8
+pinPwm = 25
 MIN_FREQUENCY = 2 # pulses per second
 MAX_FREQUENCY = 70 # pulses per second
 
 GPIO.setmode(GPIO.BCM) # GPIO Numbering Mode Broadcom
 
 GPIO.setup(pinPwm, GPIO.OUT)
-p = GPIO.PWM(pinPwm, 1) # create an object p for PWM on port pinPwm at 50 Hertz  
+p = GPIO.PWM(pinPwm, 20) # create an object p for PWM on port pinPwm at 50 Hertz  
 p.start(50)  # start the PWM on 50 percent duty cycle  
 #p.ChangeFrequency(100)  # change the frequency to 100 Hz (floats also work) e.g. 100.5, 5.2  
 #p.ChangeDutyCycle(90)
