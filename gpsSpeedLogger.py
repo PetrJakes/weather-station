@@ -1,5 +1,6 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+
 import serial
 import time
 from readAnemoPulses import Anemometer
@@ -42,12 +43,19 @@ SAMPLING_FREQUENCY= 1 # Hz (1 Hz means rps is calculated 1 times per second)
 PIN_RPS_SAMPLER_INPUT= 23 
 
 
-an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT, PIN_SAMPLING_PULSES_OUTPUT, PIN_RPS_SAMPLER_INPUT, SAMPLING_FREQUENCY)
+an=Anemometer(WIND_HISTORY_INTERVAL, 
+                PULSES_PER_REVOLUTION, 
+                PIN_ANEMO_PULSES_INPUT, 
+                PIN_SAMPLING_PULSES_OUTPUT, 
+                PIN_RPS_SAMPLER_INPUT, 
+                SAMPLING_FREQUENCY)
+                
+             
 time.sleep(1)
 f = open('./gpslog.csv', "a+")
 try:
     while True:
-        with serial.Serial(port, baudrate=9600, timeout=1) as ser:
+        with serial.Serial(port, baudrate=9600, timeout=10) as ser:
             gpsLine = ser.readline()
             if gpsLine.startswith("$GPRMC"):
                 gpsLine = gpsLine.strip()

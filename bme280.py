@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 #--------------------------------------
 #    ___  ___  _ ____
 #   / _ \/ _ \(_) __/__  __ __
@@ -24,6 +25,8 @@
 # http://www.raspberrypi-spy.co.uk/
 #
 #--------------------------------------
+# Slightly  modified by: Petr Jakes
+# Date                 : 6.7.2018  
 
 import smbus
 import time
@@ -32,6 +35,7 @@ from ctypes import c_byte
 from ctypes import c_ubyte
 
 DEVICE = 0x76 # Default device I2C address
+
 # Set the altitude of your current location in meter
 altitude = 287.0
 
@@ -154,7 +158,6 @@ def readBME280All(addr=DEVICE):
     var2 = pressure * dig_P8 / 32768.0
     pressure = pressure + (var1 + var2 + dig_P7) / 16.0
 
-#  psea = pressure / pow(1.0 - altitude/44330.0, 5.255)
   psea = pressure*pow(1-((0.0065*altitude)/(temperature/100.0+0.0065*altitude+273.15)), -5.257)
 
   # Refine humidity
@@ -165,8 +168,8 @@ def readBME280All(addr=DEVICE):
     humidity = 100
   elif humidity < 0:
     humidity = 0
-
-  return temperature/100.0,pressure/100.0,humidity,psea/100.0
+  # temperature °C, pressure hPa, humidity %, psea m
+  return temperature/100.0, pressure/100.0, humidity, psea/100.0
 
 def main():
 
@@ -176,7 +179,7 @@ def main():
 
   temperature,pressure,humidity,psea = readBME280All()
 
-  print "Temperature        : ", temperature, "C"
+  print "Temperature        : ", temperature, "°C"
   print "Pressure           : ", pressure, "hPa"
   print "Humidity           : ", humidity, "%"
   print "Pressure above sea : ", psea, "hPa"

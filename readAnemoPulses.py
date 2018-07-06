@@ -59,7 +59,7 @@ class WindVane(object):
         # Set this to ADS1015 or ADS1115 depending on the ADC you are using!
         self.ads1115 = ADS1x15(ic=ADS1115, address=0x48)        
         
-        self._currentWindDirection=0
+        self.instaneousWindDirection=0
         self._windDirectionQueue=[]
         self._windDirectionHistoryInterval=60*10 # 10 minutes
         self.readWindDirection()
@@ -102,20 +102,21 @@ class WindVane(object):
         
     def readWindDirection(self):
         calculatedVoltage, vaneVoltage, vcc= self.recentWindDirectionVoltage()
-        self._currentWindDirection = self.voltageToDegrees(calculatedVoltage, self._currentWindDirection)
-#        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  self._currentWindDirection)        
+        self.instaneousWindDirection = self.voltageToDegrees(calculatedVoltage, self.instaneousWindDirection)
+#        print "%0.4f ,%0.4f ,%0.4f, %3.2f" % (vcc,  vaneVoltage,  voltage,  self.instaneousWindDirection)        
         self.maintainWindDirectionQueue()
         return self.averageWindDirection
         
         
     def maintainWindDirectionQueue(self):
-        self._windDirectionQueue.append(self._currentWindDirection)
+        self._windDirectionQueue.append(self.instaneousWindDirection)
         queueLenght = len(self._windDirectionQueue)        
         if queueLenght > self._windDirectionHistoryInterval:
             diff = queueLenght - self._windDirectionHistoryInterval
             del self._windDirectionQueue[:diff]            
         # Wind direction should be reported in degrees to the nearest 10°
         self.averageWindDirection = round(self.averagWindDirections(self._windDirectionQueue), -1)
+        self.instantaneousWindDirection=self._windDirectionQueue[-1]
             
         
     def voltageToDegrees(self, voltage, lastKnownDirection):
@@ -216,7 +217,7 @@ class Anemometer(object):
           :rtype: the return type description"""    
           
     warning = """
-            The GPIO for hardware_PWM ust be one of the following:
+            The GPIO for hardware_PWM must be one of the following:
             12  PWM channel 0  All models but A and B
             13  PWM channel 1  All models but A and B
             18  PWM channel 0  All models
@@ -231,14 +232,14 @@ class Anemometer(object):
     
     def __init__(self,                     
                     WIND_HISTORY_INTERVAL=60*10, # 10 minutes                     
-                    pulsesPerRevolution=2,
+                    PULSES_PER_REVOLUTION=4,
                     PIN_ANEMO_PULSES_INPUT=7, 
                     PIN_SAMPLING_PULSES_OUTPUT=18,                                    
                     PIN_RPS_SAMPLER_INPUT=24, 
-                    SAMPLING_FREQUENCY=4, # 4Hz (input signals are sampled 4 times per second)
+                    SAMPLING_FREQUENCY=1, # 1Hz means pulse counter is inspected 1 time per second
                     PULSES_TO_MPS_QUOTIENT = 1,                     
-                    minRPM=0,                      
-                    maxRPM=3000,
+                    minRPS=0, 
+                    maxRPS=3000,
                     ):
         
         if PIN_SAMPLING_PULSES_OUTPUT!=18:
@@ -246,26 +247,28 @@ class Anemometer(object):
         self.rpsQueue=[0]
         self.gustQueue=[0]
         self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
-        self.PULSES_PER_REVOLUTION=float(pulsesPerRevolution)                
-        self.MIN_RPM=minRPM
-        self.MAX_RPM=maxRPM        
+        self.PULSES_PER_REVOLUTION=float(PULSES_PER_REVOLUTION)                
+        self.MIN_RPS=minRPS
+        self.MAX_RPS=maxRPS        
         self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY                        
         self._lastPulsesCount=0
-        self.gustInterval = 3*SAMPLING_FREQUENCY
-        self.meanWindMps=0
-        self.meanWindKmph=0
-        self.meanWindKnots=0
-        self.recentGustMps=0
+        self.gustInterval = 3*SAMPLING_FREQUENCY # intended to be 3 seconds
+        self.windMetersPerSecond_10minAvg=0
+        self.windKmph_10minutesAvg=0
+        self.windKnots_10minAvg=0        
+        self.windMilesPerHour_10minAvg=0        
+        self.gust_metersPerSecond_10minutesAvg=0
         self.recentGustKmph=0
         self.recentGustKnots=0
-        
+        self.recentGustMilesPerHour=0
         
         pi=pigpio.pi()
         
         
-        # anemometer pulses generator input
+        # anemometer pulses input
         # when a rising edge is detected on port PIN_ANEMO_PULSES_INPUT, regardless of whatever
         # else is happening in the program, the function callback will be run
+        # If a user callback is not specified a default tally callback is provided which simply counts edges
         pi.set_mode(PIN_ANEMO_PULSES_INPUT, pigpio.INPUT)
         pi.set_pull_up_down(PIN_ANEMO_PULSES_INPUT, pigpio.PUD_DOWN)
         self.cb1=pi.callback(user_gpio=PIN_ANEMO_PULSES_INPUT, edge=pigpio.EITHER_EDGE)
@@ -286,8 +289,8 @@ class Anemometer(object):
         self._appendRpsQueue()
         self._apendGustQueue()
         self._maintainQueues()        
-        self._meanWind()
-        self._gustWind()
+        self._meanWindRps()
+        self._gustWindRps()
         self._calculateWind()
 
     def _maintainPulsesCounter(self):
@@ -303,6 +306,7 @@ class Anemometer(object):
 
     def _apendGustQueue(self):
         try:
+            # calculate last known gust 
             recentAverageGustRps = sum(self.rpsQueue[-self.gustInterval:])/self.gustInterval            
         except IndexError as e:
             recentAverageGustRps = sum(self.rpsQueue)/len(self.rpsQueue)
@@ -316,35 +320,64 @@ class Anemometer(object):
             del self.rpsQueue[:diff]
             del self.gustQueue[:diff]
 
-    def _meanWind(self):
+    def _meanWindRps(self):
+        last2Minutes = 2*60*self.SAMPLING_FREQUENCY        
         try:
-            averageRps = sum(self.rpsQueue) / len(self.rpsQueue)            
-            self.meanWindRps = averageRps
+            rps_2minutesAvg = sum(self.rpsQueue[-last2Minutes:]) / last2Minutes
+            rps_10minutesAvg = sum(self.rpsQueue) / len(self.rpsQueue)            
+            self.windRps_10minutesAvg = rps_10minutesAvg
+            self.windRps_2minutesAvg = rps_2minutesAvg
         except ZeroDivisionError as e:            
-            self.meanWindRps = 0
+            self.windRps_10minutesAvg = 0
+            self.windRps_2minutesAvg = 0
     
-    def _gustWind(self):
-        self.recentWindGustRps=max(self.gustQueue)
+    def _gustWindRps(self):
+        self.windGustRps_10min=max(self.gustQueue)
+        last2Minutes = 2*60*self.SAMPLING_FREQUENCY
+        self.windGustRps_2min = max(self.gustQueue[-last2Minutes:])
         
     def _calculateWind(self):
-        # equation to calculate wind speed from rotation
-        # f(x)= 0.8080806704x + 0.0580018988
-        # obtainted from LibreOffice Calc 
-        # speed and rpm obtained by anemometer calibration using car and GPS                
+        # speed and rpm obtained by anemometer calibration using car and GPS
+        # using gpsSpeedLogger script
+        # https://docs.google.com/spreadsheets/d/1KGnTVhRWrb_K1fnTTW8CXkVz8K4AGxHHnDNjzvDxhsM/edit?usp=sharing
+        # equation to calculate rotation from wind speed (GPS car speed)
+        # f(x)= 0.808x + 0.058
+        # + 0.058 can be omited        
+        # 1/0.808 = 1.2376
         # Wind speed should be reported to a resolution of 0.5 m/s
-#        meanWindMps = 0.8080806704 * self.meanWindRps + 0.0580018988
-        meanWindMps = round((0.8080806704 * self.meanWindRps + 0.0580018988)*2)/2        
-        self.meanWindMps = meanWindMps
-        self.meanWindKmph = round(meanWindMps * 3.6*2)/2
-        self.meanWindKnots = round(meanWindMps * 1.9438444924574*2)/2
         
-        recentGustMps = 0.8080806704 * self.recentWindGustRps + 0.0580018988
-        self.recentGustMps=round(recentGustMps*2)/2
-        self.recentGustKmph = round(recentGustMps * 3.6*2)/2
-        self.recentGustKnots = round(recentGustMps * 1.9438444924574*2)/2
+        # wind speed
+        windMetersPerSecond_10minAvg = self._round(1.2376 * self.windRps_10minutesAvg)
+        instaneousWindMetersPerSecond = self._round(1.2376 * self.rpsQueue[-1])
+        
+        self.windMetersPerSecond_10minAvg = windMetersPerSecond_10minAvg
+        self.windKmph_10minutesAvg = self._round(windMetersPerSecond_10minAvg * 3.6)
+        self.windKnots_10minAvg = self._round(windMetersPerSecond_10minAvg * 1.9438444924574)
+        self.windMilesPerHour_10minAvg=self._round(windMetersPerSecond_10minAvg * 2.2369362920544)
+        
+        self.instaneousWindMetersPerSecond = instaneousWindMetersPerSecond
+        self.instaneousWindMilesPerHour = self._round(instaneousWindMetersPerSecond* 2.2369362920544)
+        
+        # gust
+        gust_metersPerSecond_2minutesAvg = self._round(1.2376 * self.windGustRps_2min)
+        gust_metersPerSecond_10minutesAvg = self._round(1.2376 * self.windGustRps_10min)
+        self.gust_metersPerSecond_10minutesAvg=gust_metersPerSecond_10minutesAvg
+        self.gustKmph_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 3.6)
+        self.gustKnots_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 1.9438444924574)
+        self.gustMilesPerHour_2minutes=self._round(gust_metersPerSecond_2minutesAvg * 2.2369362920544)
+        self.gustMilesPerHour_10minutes=self._round(gust_metersPerSecond_10minutesAvg * 2.2369362920544)
+#TODO:
+# windgustmph - [mph current wind gust, using software specific time period]
+# windgustdir - [0-360 using software specific time period]        
+        
+        
+    def _round(self, nmber):
+        # rounding to xx.5
+        return round(nmber*2)/2
+        
         
 def birthday():
-    # Easter Egg to display Happy Brithday for your friends on LCD display
+    # Easter Egg to display Happy Brithday for your friends on the LCD display
     birthdayDict={                      
                       "February-9":"Jang Jungyong", 
                       "February-12":"Mek", 
@@ -364,8 +397,7 @@ def birthday():
     
 def main():
     WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
-    PULSES_PER_REVOLUTION = 4
-    
+    PULSES_PER_REVOLUTION = 4    
     PIN_ANEMO_PULSES_INPUT=22
     
     PIN_SAMPLING_PULSES_OUTPUT= 18 # Start hardware PWM on a PIN_SAMPLING_PULSES_OUTPUT GPIO (dutycycle 50% set in the code)
@@ -373,24 +405,23 @@ def main():
     PIN_RPS_SAMPLER_INPUT= 23 
        
     an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT, PIN_SAMPLING_PULSES_OUTPUT, PIN_RPS_SAMPLER_INPUT, SAMPLING_FREQUENCY)
-       
     vane=WindVane()    
-    
+    dispayConnected=True
     try:
         mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
     except IOError as e:
-        print e
+        dispayConnected=False
         
     
     print "===================================="
     try:
         while True:
-            print an.meanWindMps,  "m/s"
-            print an.meanWindKmph, "km/h"
-            print an.meanWindKnots, "knot"
-            print an.recentGustMps, "m/s gust"
-            print an.recentGustKmph, "km/h gust"
-            print an.recentGustKnots, "knot gust"            
+            print an.windMetersPerSecond_10minAvg,  "m/s"
+            print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg*0.27777777777778
+            print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg*0.51444444444
+            print an.gust_metersPerSecond_10minutesAvg, "m/s gust"
+            print an.recentGustKmph, "km/h gust", an.recentGustKmph*0.27777777777778
+            print an.recentGustKnots, "knot gust", an.recentGustKnots*0.51444444444            
 #                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
 
             print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
@@ -400,22 +431,25 @@ def main():
             print "Pressure           : ", pressure, "hPa"
             print "Pressure above sea : ", psea, "hPa"
             print "Altitude above sea : ", bme280.altitude, "m"
-            try:
-    #            mylcd.lcd_clear()
-                name=birthday()
-                if name:                
-                    mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
-                    mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
-                    time.sleep(5)
-                mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.meanWindMps, 1)
-                mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.recentGustMps, 2)
-                time.sleep(4)            
-                mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
-                mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
-    #            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
-            except UnboundLocalError as e:
-                print e
-            time.sleep(4)
+            if dispayConnected:
+                try:
+        #            mylcd.lcd_clear()
+                    name=birthday()
+                    if name:                
+                        mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
+                        mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
+                        time.sleep(5)
+                    mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.windMetersPerSecond_10minAvg, 1)
+                    mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.gust_metersPerSecond_10minutesAvg, 2)
+                    time.sleep(4)            
+                    mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
+                    mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
+        #            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+                except Exception as e:
+                    print e
+                time.sleep(4)
+            else:
+                time.sleep(5) # 
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
         pass
     
