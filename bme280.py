@@ -34,11 +34,13 @@ from ctypes import c_short
 from ctypes import c_byte
 from ctypes import c_ubyte
 
-DEVICE = 0x76 # Default device I2C address
+import configparser
+config = configparser.ConfigParser()
+config.read('weather.ini')
+settings= config['SETTINGS']
 
-# Set the altitude of your current location in meter
-altitude = 287.0
-
+BME280_ADDRESS=int(settings["BME280_ADDRESS"], 16)
+BME280_ALTITUDE=int(settings["BME280_ALTITUDE"])
 
 bus = smbus.SMBus(1) # Rev 2 Pi, Pi 2 & Pi 3 use bus 1
                      # Rev 1 Pi uses bus 0
@@ -63,13 +65,13 @@ def getUChar(data,index):
   result =  data[index] & 0xFF
   return result
 
-def readBME280ID(addr=DEVICE):
+def readBME280ID(addr=BME280_ADDRESS):
   # Chip ID Register Address
   REG_ID     = 0xD0
   (chip_id, chip_version) = bus.read_i2c_block_data(addr, REG_ID, 2)
   return (chip_id, chip_version)
 
-def readBME280All(addr=DEVICE):
+def readBME280All(addr=BME280_ADDRESS):
   # Register Addresses
   REG_DATA = 0xF7
   REG_CONTROL = 0xF4
@@ -158,7 +160,7 @@ def readBME280All(addr=DEVICE):
     var2 = pressure * dig_P8 / 32768.0
     pressure = pressure + (var1 + var2 + dig_P7) / 16.0
 
-  psea = pressure*pow(1-((0.0065*altitude)/(temperature/100.0+0.0065*altitude+273.15)), -5.257)
+  psea = pressure*pow(1-((0.0065*BME280_ALTITUDE)/(temperature/100.0+0.0065*BME280_ALTITUDE+273.15)), -5.257)
 
   # Refine humidity
   humidity = t_fine - 76800.0
@@ -168,8 +170,13 @@ def readBME280All(addr=DEVICE):
     humidity = 100
   elif humidity < 0:
     humidity = 0
-  # temperature °C, pressure hPa, humidity %, psea m
-  return temperature/100.0, pressure/100.0, humidity, psea/100.0
+  # temperature °C, temperature F, pressure hPa, humidity %, psea m
+  temperatureC = temperature/100.0
+  temperatureF = temperatureC * 9/5 + 32
+  pressureHpa = pressure/100.0
+  pressureInch= pressureHpa*0.029529983071445
+  
+  return temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea/100.0
 
 def main():
 
@@ -177,13 +184,13 @@ def main():
   print "Chip ID     :", chip_id
   print "Version     :", chip_version
 
-  temperature,pressure,humidity,psea = readBME280All()
+  temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea = readBME280All()
 
   print "Temperature        : ", temperature, "°C"
   print "Pressure           : ", pressure, "hPa"
   print "Humidity           : ", humidity, "%"
   print "Pressure above sea : ", psea, "hPa"
-  print "Altitude above sea : ", altitude, "m"
+  print "Altitude above sea : ", BME280_ALTITUDE, "m"
 
 if __name__=="__main__":
    main()

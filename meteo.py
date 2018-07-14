@@ -5,6 +5,7 @@ sending weather data from
 to:
 - wunderground
 - windguru
+- windfinder
 """
 import configparser
 config = configparser.ConfigParser()
@@ -17,24 +18,18 @@ import logging.handlers as handlers
 import ConfigParser
 from datetime import datetime
 import hashlib
+import bme280
+
 
 config.read('weather.ini')
 
-settings= config['SETTINGS']
+settings = config['SETTINGS']
+LOG_FILE = settings["LOG_FILE"]
 
 windFinder = config["WINDFINDER"]
 windGuru = config["WINDGURU"]
 wUnderground = config["WEATHERUNDERGROUND"]
 
-
-LOG_FILE = settings["LOG_FILE"]
-WIND_HISTORY_INTERVAL=settings["WIND_HISTORY_INTERVAL"]
-PULSES_PER_REVOLUTION=settings["PULSES_PER_REVOLUTION"]
-PIN_ANEMO_PULSES_INPUT=settings["PIN_ANEMO_PULSES_INPUT"]
-
-PIN_SAMPLING_PULSES_OUTPUT=settings["PIN_SAMPLING_PULSES_OUTPUT"]
-SAMPLING_FREQUENCY=settings["SAMPLING_FREQUENCY"]
-PIN_RPS_SAMPLER_INPUT=settings["PIN_RPS_SAMPLER_INPUT"]
 
 FORMAT = "%(asctime)s %(levelname)s %(message)s "
 logger = logging.getLogger("weatherd")
@@ -66,7 +61,6 @@ logger.addHandler(handler)
 
 
 WINDFINDER_URI = windFinder["WINDFINDER_URI"]
-
 
 def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
     WINDFINDER_ID = windFinder['WINDFINDER_ID']    
@@ -117,10 +111,11 @@ def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
 
 WINDGURU_URI = windGuru["WINDGURU_URI"]
 
-def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum):    
+def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum):
     WINDGURU_STATION_ID = windGuru["WINDGURU_STATION_ID"]
     WINDGURU_API_PASSWORD = windGuru["WINDGURU_API_PASSWORD"]
     WINDGURU_SPOT_NAME = windGuru["WINDGURU_SPOT_NAME"]
+    INTERVAL = windGuru["INTERVAL"]
     # hash (required) MD5 hash of a string that consists of 
     # salt, uid and station password concatenated together (in this order, see example below)
     # Authorization variables are required to validate your upload, example:
@@ -141,7 +136,7 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
                                         'uid':WINDGURU_STATION_ID,                                        
                                         'salt':wgSalt,                                        
                                         'hash':wgHash,                                        
-                                        'interval':60,            
+                                        'interval':INTERVAL,            
                                         'wind_avg':windSpeedKnot,
                                         'windgustmph':windGustKnot,
                                         'wind_direction':windDeg,                                         
@@ -195,22 +190,26 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
 
 WEATHERUNDERGROUND_URI = wUnderground["WEATHERUNDERGROUND_URI"]
 
-def weatherUndergroundString( windDeg=0, windSpeed=10,  windGust=15, temp=24, hum=45 ):
+def weatherUndergroundString(Anemometer,  WindVane):
     # Station ID
     WEATHERUNDERGROUND_ID = wUnderground["WEATHERUNDERGROUND_ID"]
     # Station Key/Password
     WEATHERUNDERGROUND_KEY = wUnderground["WEATHERUNDERGROUND_KEY"]
     timestamp= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")    
+    temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
+    
+
     try:
         params = urllib.urlencode({
                                         'action':'updateraw',
                                         'ID':WEATHERUNDERGROUND_ID,
                                         'PASSWORD':WEATHERUNDERGROUND_KEY,                                        
-                                        'winddir':windDeg,            
-                                        'windspeedmph':windSpeedMph,
-                                        'windgustmph':windGustMph,
-                                        'tempf':temp,
-                                        'humidity':hum,
+                                        'winddir':WindVane.instantaneousWindDirection,            
+                                        'windspeedmph':Anemometer.instaneousWindMilesPerHour,
+                                        'windgustmph':Anemometer.gustMilesPerHour_10minutesAvg,
+                                        'tempf':temperatureF,
+                                        'humidity':humidity,
+                                        'baromin':pressureInch, 
                                         'dateutc':timestamp, 
                                         'softwaretype':'raspberry_meteo'
                                         })

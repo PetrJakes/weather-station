@@ -16,6 +16,8 @@ import I2C_LCD_driver
 import bme280
 import datetime
 import pigpio
+import meteo
+
 import configparser
 config = configparser.ConfigParser()
 
@@ -23,11 +25,7 @@ config.read('weather.ini')
 
 settings= config['SETTINGS']
 
-LCD_ADDRESS=settings["LCD_ADDRESS"]
-
-
-
-
+LCD_ADDRESS=int(settings["LCD_ADDRESS"], 16)
 
 class WindVane(object):
     """ Class for reading voltage from wind wane 
@@ -368,10 +366,10 @@ class Anemometer(object):
         gust_metersPerSecond_2minutesAvg = self._round(self.windGustRps_2min * self.PULSES_TO_MPS_QUOTIENT)
         gust_metersPerSecond_10minutesAvg = self._round(self.windGustRps_10min * self.PULSES_TO_MPS_QUOTIENT)
         self.gust_metersPerSecond_10minutesAvg=gust_metersPerSecond_10minutesAvg
-        self.gustKmph_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 3.6)
-        self.gustKnots_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 1.9438444924574)
-        self.gustMilesPerHour_2minutes=self._round(gust_metersPerSecond_2minutesAvg * 2.2369362920544)
-        self.gustMilesPerHour_10minutes=self._round(gust_metersPerSecond_10minutesAvg * 2.2369362920544)
+        self.gustKmph_10minutesAvg = self._round(gust_metersPerSecond_10minutesAvg * 3.6)
+        self.gustKnots_10minutesAvg = self._round(gust_metersPerSecond_10minutesAvg * 1.9438444924574)
+        self.gustMilesPerHour_2minutesAvg=self._round(gust_metersPerSecond_2minutesAvg * 2.2369362920544)
+        self.gustMilesPerHour_10minutesAvg=self._round(gust_metersPerSecond_10minutesAvg * 2.2369362920544)
 #TODO:
 # windgustmph - [mph current wind gust, using software specific time period]
 # windgustdir - [0-360 using software specific time period]        
@@ -403,17 +401,18 @@ def birthday():
     
 def main():
     an=Anemometer()
-    vane=WindVane()    
+    vane=WindVane()
+    time.sleep(1)
     dispayConnected=True
     try:
-        mylcd = I2C_LCD_driver.lcd(ADDRESS=0X27)
+        mylcd = I2C_LCD_driver.lcd(ADDRESS=LCD_ADDRESS)
     except IOError as e:
         dispayConnected=False
-        
     
     print "===================================="
     try:
         while True:
+            meteo.weatherUndergroundString(an, vane)
             print an.windMetersPerSecond_10minAvg,  "m/s"
             print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg*0.27777777777778
             print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg*0.51444444444
@@ -423,12 +422,12 @@ def main():
 #                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
 
             print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
-            temperature,pressure,humidity,psea = bme280.readBME280All()
-            print "Temperature        : ", temperature, "°C"
+            temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
+            print "Temperature        : ", temperatureC, "°C"
             print "Humidity           : ", humidity, "%"
-            print "Pressure           : ", pressure, "hPa"
+            print "Pressure           : ", pressureHpa, "hPa"
             print "Pressure above sea : ", psea, "hPa"
-            print "Altitude above sea : ", bme280.altitude, "m"
+            print "Altitude above sea : ", bme280.BME280_ALTITUDE, "m"
             if dispayConnected:
                 try:
         #            mylcd.lcd_clear()
@@ -451,9 +450,6 @@ def main():
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
         pass
     
-
-
-
 if __name__ == "__main__":
     main()
 
