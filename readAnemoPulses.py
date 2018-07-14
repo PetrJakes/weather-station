@@ -16,9 +16,17 @@ import I2C_LCD_driver
 import bme280
 import datetime
 import pigpio
+import configparser
+config = configparser.ConfigParser()
 
-ADS1115 = 1
-REFERENTIAL_VOLTAGE=5000 # 5V
+config.read('weather.ini')
+
+settings= config['SETTINGS']
+
+LCD_ADDRESS=settings["LCD_ADDRESS"]
+
+
+
 
 
 class WindVane(object):
@@ -46,18 +54,22 @@ class WindVane(object):
     subtracting 360° from the second sample.
     """
     def __init__(self):
-        ADS1115 = 1  # 16-bit ADC
-
-        # Select the gain
-        self.gain = 6144  # +/- 6.144V
-        # self.gain = 4096  # +/- 4.096V
+        ADS1115 = int(settings["ADS1115"]) # 16-bit ADC
+        
+        ADS1115_ADDRESS = int(settings["ADS1115_ADDRESS"], 16)
+        ADS1115_GAIN = float(settings["ADS1115_GAIN"])
+        ADS1115_SPS = int(settings["ADS1115_SPS"])
+        
+        self.REFERENTIAL_VOLTAGE = float(settings["REFERENTIAL_VOLTAGE"])
+        self.gain = int(ADS1115_GAIN)
+        self.sps = int(ADS1115_SPS)
 
         # Select the sample rate
         self.sps = 250  # 250 samples per second
 
         # Initialise the ADC using the default mode (use default I2C address)
         # Set this to ADS1015 or ADS1115 depending on the ADC you are using!
-        self.ads1115 = ADS1x15(ic=ADS1115, address=0x48)        
+        self.ads1115 = ADS1x15(ic=ADS1115, address=ADS1115_ADDRESS)        
         
         self.instaneousWindDirection=0
         self._windDirectionQueue=[]
@@ -96,7 +108,7 @@ class WindVane(object):
         # first reading returns wrong value sometimes, lets read it twice
         self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage
         vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage    
-        calculatedVoltage = (vaneVoltage * (REFERENTIAL_VOLTAGE/vcc))
+        calculatedVoltage = (vaneVoltage * (self.REFERENTIAL_VOLTAGE/vcc))
         return calculatedVoltage/1000, vaneVoltage/1000, vcc/1000
         
         
@@ -230,26 +242,27 @@ class Anemometer(object):
             53  PWM channel 1  Compute module only
             """     
     
-    def __init__(self,                     
-                    WIND_HISTORY_INTERVAL=60*10, # 10 minutes                     
-                    PULSES_PER_REVOLUTION=4,
-                    PIN_ANEMO_PULSES_INPUT=7, 
-                    PIN_SAMPLING_PULSES_OUTPUT=18,                                    
-                    PIN_RPS_SAMPLER_INPUT=24, 
-                    SAMPLING_FREQUENCY=1, # 1Hz means pulse counter is inspected 1 time per second
-                    PULSES_TO_MPS_QUOTIENT = 1,                     
-                    minRPS=0, 
-                    maxRPS=3000,
-                    ):
+    def __init__(self):
+        WIND_HISTORY_INTERVAL = int(settings["WIND_HISTORY_INTERVAL"])
+        PULSES_PER_REVOLUTION = int(settings["PULSES_PER_REVOLUTION"])
+        PIN_ANEMO_PULSES_INPUT = int(settings["PIN_ANEMO_PULSES_INPUT"])
+        
+        PIN_SAMPLING_PULSES_OUTPUT = int(settings["PIN_SAMPLING_PULSES_OUTPUT"])
+        SAMPLING_FREQUENCY = int(settings["SAMPLING_FREQUENCY"])
+        PIN_RPS_SAMPLER_INPUT = int(settings["PIN_RPS_SAMPLER_INPUT"])
+        self.PULSES_TO_MPS_QUOTIENT = float(settings["PULSES_TO_MPS_QUOTIENT"])
+        MIN_RPS = int(settings["MIN_RPS"])
+        MAX_RPS = int(settings["MAX_RPS"])
+        
         
         if PIN_SAMPLING_PULSES_OUTPUT!=18:
-            print warning
+            print Anemometer.warning
         self.rpsQueue=[0]
         self.gustQueue=[0]
         self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
         self.PULSES_PER_REVOLUTION=float(PULSES_PER_REVOLUTION)                
-        self.MIN_RPS=minRPS
-        self.MAX_RPS=maxRPS        
+        self.MIN_RPS=MIN_RPS
+        self.MAX_RPS=MAX_RPS
         self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY                        
         self._lastPulsesCount=0
         self.gustInterval = 3*SAMPLING_FREQUENCY # intended to be 3 seconds
@@ -337,18 +350,11 @@ class Anemometer(object):
         self.windGustRps_2min = max(self.gustQueue[-last2Minutes:])
         
     def _calculateWind(self):
-        # speed and rpm obtained by anemometer calibration using car and GPS
-        # using gpsSpeedLogger script
-        # https://docs.google.com/spreadsheets/d/1KGnTVhRWrb_K1fnTTW8CXkVz8K4AGxHHnDNjzvDxhsM/edit?usp=sharing
-        # equation to calculate rotation from wind speed (GPS car speed)
-        # f(x)= 0.808x + 0.058
-        # + 0.058 can be omited        
-        # 1/0.808 = 1.2376
         # Wind speed should be reported to a resolution of 0.5 m/s
         
         # wind speed
-        windMetersPerSecond_10minAvg = self._round(1.2376 * self.windRps_10minutesAvg)
-        instaneousWindMetersPerSecond = self._round(1.2376 * self.rpsQueue[-1])
+        windMetersPerSecond_10minAvg = self._round(self.windRps_10minutesAvg * self.PULSES_TO_MPS_QUOTIENT)
+        instaneousWindMetersPerSecond = self._round(self.rpsQueue[-1] * self.PULSES_TO_MPS_QUOTIENT)
         
         self.windMetersPerSecond_10minAvg = windMetersPerSecond_10minAvg
         self.windKmph_10minutesAvg = self._round(windMetersPerSecond_10minAvg * 3.6)
@@ -359,8 +365,8 @@ class Anemometer(object):
         self.instaneousWindMilesPerHour = self._round(instaneousWindMetersPerSecond* 2.2369362920544)
         
         # gust
-        gust_metersPerSecond_2minutesAvg = self._round(1.2376 * self.windGustRps_2min)
-        gust_metersPerSecond_10minutesAvg = self._round(1.2376 * self.windGustRps_10min)
+        gust_metersPerSecond_2minutesAvg = self._round(self.windGustRps_2min * self.PULSES_TO_MPS_QUOTIENT)
+        gust_metersPerSecond_10minutesAvg = self._round(self.windGustRps_10min * self.PULSES_TO_MPS_QUOTIENT)
         self.gust_metersPerSecond_10minutesAvg=gust_metersPerSecond_10minutesAvg
         self.gustKmph_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 3.6)
         self.gustKnots_10minutes = self._round(gust_metersPerSecond_10minutesAvg * 1.9438444924574)
@@ -396,15 +402,16 @@ def birthday():
 
     
 def main():
-    WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
-    PULSES_PER_REVOLUTION = 4    
-    PIN_ANEMO_PULSES_INPUT=22
-    
-    PIN_SAMPLING_PULSES_OUTPUT= 18 # Start hardware PWM on a PIN_SAMPLING_PULSES_OUTPUT GPIO (dutycycle 50% set in the code)
-    SAMPLING_FREQUENCY= 1 # Hz (1 Hz means rps is calculated 1 times per second)
-    PIN_RPS_SAMPLER_INPUT= 23 
+#    WIND_HISTORY_INTERVAL = 60*10 # 10 minutes
+#    PULSES_PER_REVOLUTION = 4    
+#    PIN_ANEMO_PULSES_INPUT=22
+#    
+#    PIN_SAMPLING_PULSES_OUTPUT= 18 # Start hardware PWM on a PIN_SAMPLING_PULSES_OUTPUT GPIO (dutycycle 50% set in the code)
+#    SAMPLING_FREQUENCY= 1 # Hz (1 Hz means rps is calculated 1 times per second)
+#    PIN_RPS_SAMPLER_INPUT= 23 
        
-    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT, PIN_SAMPLING_PULSES_OUTPUT, PIN_RPS_SAMPLER_INPUT, SAMPLING_FREQUENCY)
+#    an=Anemometer(WIND_HISTORY_INTERVAL, PULSES_PER_REVOLUTION, PIN_ANEMO_PULSES_INPUT, PIN_SAMPLING_PULSES_OUTPUT, PIN_RPS_SAMPLER_INPUT, SAMPLING_FREQUENCY)
+    an=Anemometer()
     vane=WindVane()    
     dispayConnected=True
     try:

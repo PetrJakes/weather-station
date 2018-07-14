@@ -6,7 +6,8 @@ to:
 - wunderground
 - windguru
 """
-
+import configparser
+config = configparser.ConfigParser()
 import subprocess
 import time
 import urllib
@@ -17,13 +18,28 @@ import ConfigParser
 from datetime import datetime
 import hashlib
 
+config.read('weather.ini')
 
-LOG_FILENAME='/var/log/weatherd.log'
+settings= config['SETTINGS']
+
+windFinder = config["WINDFINDER"]
+windGuru = config["WINDGURU"]
+wUnderground = config["WEATHERUNDERGROUND"]
+
+
+LOG_FILE = settings["LOG_FILE"]
+WIND_HISTORY_INTERVAL=settings["WIND_HISTORY_INTERVAL"]
+PULSES_PER_REVOLUTION=settings["PULSES_PER_REVOLUTION"]
+PIN_ANEMO_PULSES_INPUT=settings["PIN_ANEMO_PULSES_INPUT"]
+
+PIN_SAMPLING_PULSES_OUTPUT=settings["PIN_SAMPLING_PULSES_OUTPUT"]
+SAMPLING_FREQUENCY=settings["SAMPLING_FREQUENCY"]
+PIN_RPS_SAMPLER_INPUT=settings["PIN_RPS_SAMPLER_INPUT"]
+
 FORMAT = "%(asctime)s %(levelname)s %(message)s "
-
 logger = logging.getLogger("weatherd")
 logger.setLevel(logging.INFO)
-handler = handlers.RotatingFileHandler(LOG_FILENAME, mode='a', maxBytes=10000, backupCount=3)
+handler = handlers.RotatingFileHandler(LOG_FILE, mode='a', maxBytes=10000, backupCount=3)
 formatter = logging.Formatter(FORMAT, "%Y-%m-%d %H:%M:%S")
 handler.setFormatter(formatter)
 handler.setLevel(logging.INFO)
@@ -48,11 +64,13 @@ logger.addHandler(handler)
 # pressure:     Air Pressure (HectoPascal hPA)
 # rain:         Rain millimeters per h (mm/h)
 
-WINDFINDER_URI="http://www.windfinder.com/wind-cgi/httpload.pl"
+
+WINDFINDER_URI = windFinder["WINDFINDER_URI"]
+
 
 def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
-    WINDFINDER_ID = 'phan-rang-kite-center_my-hoa'
-    WINDFINDER_PASS = 'f47d4b810c1cc74b'
+    WINDFINDER_ID = windFinder['WINDFINDER_ID']    
+    WINDFINDER_PASS = windFinder["WINDFINDER_PASS"]
     date=datetime.now().strftime('%d.%m.%Y')
     time=datetime.now().strftime('%H:%M:%S')
     try:
@@ -97,12 +115,12 @@ def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
 
 
 
-WINDGURU_URI = "http://www.windguru.cz/upload/api.php"
+WINDGURU_URI = windGuru["WINDGURU_URI"]
 
 def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum):    
-    WINDGURU_STATION_ID = "foersterova449"
-    WINDGURU_API_PASSWORD = "atapol**7"
-    WINDGURU_SPOT_NAME = "Foersterova 449"    
+    WINDGURU_STATION_ID = windGuru["WINDGURU_STATION_ID"]
+    WINDGURU_API_PASSWORD = windGuru["WINDGURU_API_PASSWORD"]
+    WINDGURU_SPOT_NAME = windGuru["WINDGURU_SPOT_NAME"]
     # hash (required) MD5 hash of a string that consists of 
     # salt, uid and station password concatenated together (in this order, see example below)
     # Authorization variables are required to validate your upload, example:
@@ -116,7 +134,7 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
     # http://www.windguru.cz/upload/api.php?uid=stationXY&salt=20180214171400&hash=c9441d30280f4f6f4946fe2b2d360df5&wind_avg=12.5&wind_dir=165&temperature=20.5
     
     wgSalt= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    wgHash=hashlib.md5("%s%s%s"%(wgSalt,WINDGURU_STATION_ID,WINDGURU_API_PASSWORD)).hexdigest()
+    wgHash=hashlib.md5("%s%s%s"%(wgSalt, WINDGURU_STATION_ID, WINDGURU_API_PASSWORD)).hexdigest()
     
     try:
         params = urllib.urlencode({
@@ -175,13 +193,13 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
 # tempf - [F outdoor temperature] 
 # baromin - [barometric pressure inches]
 
-WEATHERUNDERGROUND_URI = 'http://rtupdate.wunderground.com/weatherstation/updateweatherstation.php'
+WEATHERUNDERGROUND_URI = wUnderground["WEATHERUNDERGROUND_URI"]
 
 def weatherUndergroundString( windDeg=0, windSpeed=10,  windGust=15, temp=24, hum=45 ):
     # Station ID
-    WEATHERUNDERGROUND_ID = "IJIN41"
+    WEATHERUNDERGROUND_ID = wUnderground["WEATHERUNDERGROUND_ID"]
     # Station Key/Password
-    WEATHERUNDERGROUND_KEY = "17kzwbjg"
+    WEATHERUNDERGROUND_KEY = wUnderground["WEATHERUNDERGROUND_KEY"]
     timestamp= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")    
     try:
         params = urllib.urlencode({
