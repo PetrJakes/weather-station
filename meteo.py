@@ -62,22 +62,23 @@ logger.addHandler(handler)
 
 WINDFINDER_URI = windFinder["WINDFINDER_URI"]
 
-def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
+def windfinderString(Anemometer,  WindVane):
     WINDFINDER_ID = windFinder['WINDFINDER_ID']    
     WINDFINDER_PASS = windFinder["WINDFINDER_PASS"]
     date=datetime.now().strftime('%d.%m.%Y')
     time=datetime.now().strftime('%H:%M:%S')
+    temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
     try:
         params = urllib.urlencode({
-                                        'sender_id':WINDFINDER_ID, 
+                                        'sender_id':WINDFINDER_ID,
                                         'password':WINDFINDER_PASS,
                                         'date':date,
                                         'time':time,
-                                        'airtemp':tempC,
-                                        'windspeed':windSpeedKnot,
-                                        'gust':windGustKnot,
-                                        'winddir':windDeg,
-                                        'pressure':pressureHpa,                                        
+                                        'windspeed':Anemometer.windKnots_10minAvg,
+                                        'gust':Anemometer.gustKnots_10minutesAvg,
+                                        'winddir':WindVane.averageWindDirection,
+                                        'pressure':pressureHpa,
+                                        'airtemp':temperatureC,
                                         })
         logger.debug(params)
     except ConfigParser.NoSectionError:
@@ -111,7 +112,7 @@ def windfinderString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa):
 
 WINDGURU_URI = windGuru["WINDGURU_URI"]
 
-def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum):
+def windguruString(Anemometer,  WindVane):
     WINDGURU_STATION_ID = windGuru["WINDGURU_STATION_ID"]
     WINDGURU_API_PASSWORD = windGuru["WINDGURU_API_PASSWORD"]
     WINDGURU_SPOT_NAME = windGuru["WINDGURU_SPOT_NAME"]
@@ -130,6 +131,7 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
     
     wgSalt= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     wgHash=hashlib.md5("%s%s%s"%(wgSalt, WINDGURU_STATION_ID, WINDGURU_API_PASSWORD)).hexdigest()
+    temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
     
     try:
         params = urllib.urlencode({
@@ -137,11 +139,11 @@ def windguruString(tempC, windSpeedKnot, windGustKnot, windDeg, pressureHpa, hum
                                         'salt':wgSalt,                                        
                                         'hash':wgHash,                                        
                                         'interval':INTERVAL,            
-                                        'wind_avg':windSpeedKnot,
-                                        'windgustmph':windGustKnot,
-                                        'wind_direction':windDeg,                                         
-                                        'temperature':tempC,
-                                        'rh':hum,
+                                        'wind_avg':Anemometer.windKnots_10minAvg,
+                                        'windgustmph':Anemometer.gustKnots_10minutesAvg,
+                                        'wind_direction':WindVane.averageWindDirection,
+                                        'temperature':temperatureC,
+                                        'rh':humidity,
                                         'mslp':pressureHpa,                                         
                                         })
         logger.debug(params)
@@ -231,6 +233,7 @@ def updateWeather(uri, params):
         print params
         result = urllib.urlopen(uri + params)        
         feedback = result.read().strip()
+        print "FEEDBACK***************"
         print feedback
         logger.info(feedback)
     except IOError as e:

@@ -402,7 +402,7 @@ def birthday():
 def main():
     an=Anemometer()
     vane=WindVane()
-    time.sleep(1)
+    time.sleep(2) # wait till first wind is measured
     dispayConnected=True
     try:
         mylcd = I2C_LCD_driver.lcd(ADDRESS=LCD_ADDRESS)
@@ -412,7 +412,13 @@ def main():
     print "===================================="
     try:
         while True:
-            meteo.weatherUndergroundString(an, vane)
+#TODO: sending to the web pages
+            params = meteo.weatherUndergroundString(an, vane)
+            meteo.updateWeather(meteo.WEATHERUNDERGROUND_URI, params)
+            params = meteo.windguruString(an, vane)
+            meteo.updateWeather(meteo.WINDGURU_URI, params)
+            params = meteo.windfinderString(an, vane)
+            meteo.updateWeather(meteo.WINDFINDER_URI, params)
             print an.windMetersPerSecond_10minAvg,  "m/s"
             print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg*0.27777777777778
             print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg*0.51444444444
