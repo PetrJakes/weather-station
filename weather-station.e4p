@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2019-01-12, 23:53:22 -->
+<!-- Saved: 2019-01-13, 00:08:34 -->
 <!-- Copyright (C) 2019 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -20,7 +20,6 @@
     <Source>gpsSpeedLogger.py</Source>
     <Source>meteo.py</Source>
     <Source>pigpioTest.py</Source>
-    <Source>randPulseGen.py</Source>
     <Source>weather.ini</Source>
     <Source>weather.py</Source>
   </Sources>
