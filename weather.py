@@ -20,11 +20,9 @@ import meteo
 
 import configparser
 config = configparser.ConfigParser()
-
 config.read('weather.ini')
 
 settings= config['SETTINGS']
-
 LCD_ADDRESS=int(settings["LCD_ADDRESS"], 16)
 
 class WindVane(object):
@@ -109,7 +107,7 @@ class WindVane(object):
         # first reading returns wrong value sometimes, lets read it twice
         # AIN0 wired to Vcc - referential voltage        
         self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)
-        vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)
+        vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)        
         calculatedVoltage = (vaneVoltage * (self.REFERENTIAL_VOLTAGE/vcc))
         return calculatedVoltage/1000, vaneVoltage/1000, vcc/1000
         
@@ -393,10 +391,7 @@ def birthday():
         pass
 
     
-def main():
-    an=Anemometer()
-    vane=WindVane()
-    time.sleep(2) # wait till first wind is measured
+def main(an, vane):
     dispayConnected=True
     try:
         mylcd = I2C_LCD_driver.lcd(ADDRESS=LCD_ADDRESS)
@@ -406,52 +401,59 @@ def main():
     print "===================================="
     try:
         while True:
-#TODO: sending to the web pages
-            params = meteo.weatherUndergroundString(an, vane)
-            meteo.updateWeather(meteo.WEATHERUNDERGROUND_URI, params)
-            params = meteo.windguruString(an, vane)
-            meteo.updateWeather(meteo.WINDGURU_URI, params)
-            params = meteo.windfinderString(an, vane)
-            meteo.updateWeather(meteo.WINDFINDER_URI, params)
+            temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
             print an.windMetersPerSecond_10minAvg,  "m/s"
             print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg * 0.27777777777778
             print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg * 0.51444444444
             print an.gust_metersPerSecond_10minutesAvg, "m/s gust"
             print an.recentGustKmph, "km/h gust", an.recentGustKmph * 0.27777777777778
             print an.recentGustKnots, "knot gust", an.recentGustKnots * 0.51444444444            
-#                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
-
-            print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
-            temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
+            
+#            print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
+            print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection            
             print "Temperature        : ", temperatureC, "°C"
             print "Humidity           : ", humidity, "%"
             print "Pressure           : ", pressureHpa, "hPa"
             print "Pressure above sea : ", psea, "hPa"
             print "Altitude above sea : ", bme280.BME280_ALTITUDE, "m"
+            
             if dispayConnected:
                 try:
-        #            mylcd.lcd_clear()
+#                    mylcd.lcd_clear()
                     name=birthday()
                     if name:                
                         mylcd.lcd_display_string(' HAPPY BIRTHDAY ',  1)
                         mylcd.lcd_display_string('{:*^16}'.format(' %s '% name), 2)
                         time.sleep(5)
-                    mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.windMetersPerSecond_10minAvg, 1)
-                    mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.gust_metersPerSecond_10minutesAvg, 2)
-                    time.sleep(4)            
                     mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperatureC, chr(223)), 1)
                     mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
-        #            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+                    time.sleep(4)
+                    mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.windMetersPerSecond_10minAvg, 1)
+                    mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.gust_metersPerSecond_10minutesAvg, 2)
+#                   mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
+#                    time.sleep(4)
                 except Exception as e:
                     print e
-                time.sleep(4)
             else:
-                time.sleep(5) # 
+                print "LCD display not connected, sleeping 10 seconds"
+                time.sleep(10)   
+                
+            params = meteo.weatherUndergroundString(an, vane)
+            meteo.updateWeather(meteo.WEATHERUNDERGROUND_URI, params)
+            params = meteo.windguruString(an, vane)
+            meteo.updateWeather(meteo.WINDGURU_URI, params)
+            params = meteo.windfinderString(an, vane)
+            meteo.updateWeather(meteo.WINDFINDER_URI, params)
+            
+            
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
         pass
     
 if __name__ == "__main__":
-    main()
+    an=Anemometer()
+    vane=WindVane()    
+    time.sleep(2) # wait till first wind is measured
+    main(an, vane)
 
 
 
