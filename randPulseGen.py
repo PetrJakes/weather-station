@@ -19,7 +19,7 @@ p.start(50)  # start the PWM on 50 percent duty cycle
 #GPIO.setup(23, GPIO.OUT)
 #q = GPIO.PWM(23, 0.5) # create an object p for PWM on port pinPwm at 1 Hertz  
 #q.start(50)  # start the PWM on 50 percent duty cycle  
-
+# jen tak pro commit
 try:  
     while True:  
 #        ran=random.randint(MIN_FREQUENCY, MAX_FREQUENCY)
