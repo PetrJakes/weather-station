@@ -93,19 +93,23 @@ class WindVane(object):
         # 112.5° => 0.321V voltage difference 0.088V comparing to the voltage for 67.5°
         #  67.5° => 0.409V voltage difference 0.045V comparing to the voltage for 90.0°
         #  90.0° => 0.455V
-        # because of that, we have to measure as precise as possible
-        # to achive this goal we measure Vcc voltage on the AIN0 pin (referential voltage) 
+        # 
+        # voltages in voltageToDegrees method are calculated/measured with the referential voltage 5V
+        # in the real condition, the Vcc voltage of the Raspberry Pi can vary
+        # to measure wind wane voltage precisely, we measure Raspberry Pi Vcc voltage first - ADS1115 AIN0 pin
+        # this is real referential voltage
         # using this value we recalculate voltage measured on the voltage divider (wind vane) AIN1 pin                
         
-        # multiple readings  will supperes wind vane turbulent unstability moves
         
         # first reading returns wrong value sometimes, lets read it twice
-        self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps) 
-        vaneVoltage = self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps)  # AIN1 wired to wind vane voltage divider
-        
+        # AIN1 wired to wind vane voltage divider
+        self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps)         
+        vaneVoltage = self.ads1115.readADCSingleEnded(channel=1, pga=self.gain, sps=self.sps)  
+                
         # first reading returns wrong value sometimes, lets read it twice
-        self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage
-        vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)  # AIN0 wired to Vcc - referential voltage    
+        # AIN0 wired to Vcc - referential voltage        
+        self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)
+        vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)
         calculatedVoltage = (vaneVoltage * (self.REFERENTIAL_VOLTAGE/vcc))
         return calculatedVoltage/1000, vaneVoltage/1000, vcc/1000
         
@@ -125,7 +129,7 @@ class WindVane(object):
             diff = queueLenght - self._windDirectionHistoryInterval
             del self._windDirectionQueue[:diff]            
         # Wind direction should be reported in degrees to the nearest 10°
-        self.averageWindDirection = round(self.averagWindDirections(self._windDirectionQueue), -1)
+        self.averageWindDirection = round(self.averageWindDirections(self._windDirectionQueue), -1)
         self.instantaneousWindDirection=self._windDirectionQueue[-1]
             
         
@@ -164,7 +168,7 @@ class WindVane(object):
             return 337.5    
         return lastKnownDirection  # return previous voltage if not found
         
-    def averagWindDirections(self, listOfAngles):
+    def averageWindDirections(self, listOfAngles):
         sinSum = 0
         cosSum = 0
         for angle in listOfAngles:
@@ -175,13 +179,16 @@ class WindVane(object):
 class Anemometer(object):
     """Class for reading pulses from the cup rotating anemometer
 
-    puls samples has to be recorded/calculated very precisely, because of that: 
-    - 4Hz pwm pulses (4 pulses per second) are generated on the output pin
+    Wind speed is calculated using "Pulse Counting Method":
+    Pulse counting method uses a sampling period (t) and the number of pulses (n) 
+    that are counted over the sampling period. 
+    Knowing the number of pulses per revolution (N) for the anemometer, the speed can be calculated.
+    - 1Hz pwm pulses are generated on the output pin 
     - pwm signal is wired to the input pin
     - when a rising edge is detected on the input pin, regardless of whatever
-      else is happening in the program, the function callback to calculate 
-      pulses per second will be run
-       
+      else is happening in the program, the function callback will be run
+      to calculate pulses per second 
+      
     ***********************************************************
     pulses are recorded according to the 
     WMO GUIDE TO METEOROLOGICAL INSTRUMENTS AND METHODS OF OBSERVATION 
@@ -189,12 +196,6 @@ class Anemometer(object):
     https://library.wmo.int/pmb_ged/wmo_8_en-2012.pdf
     Recommendations for the design of wind-measuring systems:
     
-    Meausrment system consists of an anemometer with a pulse generator that 
-    generates pulses at a frequency proportional to the rotation rate of the
-    anemometer (preferably several pulses per rotation), a counting device that
-    counts the pulses at intervals of 0.25 s, and a microprocessor that computes
-    averages and standard deviation over 10 min intervals on the basis of 0.25 s
-    samples. 
     The extreme has to be determined from 3 s averages, namely, by averaging
     over the last 12 samples. This averaging has to be done every 0.25 s 
     (namely, overlapping 3 s averages every 0.25 s).
@@ -203,7 +204,7 @@ class Anemometer(object):
     to sample the filtered wind signal every 0.25 s (frequency 4 Hz)...
     
     From recorded pulses, RPM is calculated and converted to the wind speed 
-    (m/s, knots).
+    (m/s, knots).    
     1 meter/second is equal to 1.9438444924406 knot.
     1 knot is equal to 0.51444444444444 m/s
     1 knot = 1 nautical mile/hour = 1.85200 kilometer/hour
@@ -217,14 +218,7 @@ class Anemometer(object):
     http://www.yoctopuce.com/EN/article/how-to-measure-wind-part-1
     * google "libreoffice trendline to a chart equation"
 
-    - **parameters**, **types**, **return** and **return types**::
-
-          :param windHistoryInterval: lengtht of the wind history interval in s
-          :param pulsesPerRevolution: number of pulses sensor generates per one revolution
-          :type windHistoryInterval: int
-          :type pulsesPerRevolution: int
-          :return: wind speed in knots, m/s, wind gust in knots, m/s
-          :rtype: the return type description"""    
+    """    
           
     warning = """
             The GPIO for hardware_PWM must be one of the following:
@@ -420,11 +414,11 @@ def main():
             params = meteo.windfinderString(an, vane)
             meteo.updateWeather(meteo.WINDFINDER_URI, params)
             print an.windMetersPerSecond_10minAvg,  "m/s"
-            print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg*0.27777777777778
-            print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg*0.51444444444
+            print an.windKmph_10minutesAvg, "km/h",  an.windKmph_10minutesAvg * 0.27777777777778
+            print an.windKnots_10minAvg, "knot", an.windKnots_10minAvg * 0.51444444444
             print an.gust_metersPerSecond_10minutesAvg, "m/s gust"
-            print an.recentGustKmph, "km/h gust", an.recentGustKmph*0.27777777777778
-            print an.recentGustKnots, "knot gust", an.recentGustKnots*0.51444444444            
+            print an.recentGustKmph, "km/h gust", an.recentGustKmph * 0.27777777777778
+            print an.recentGustKnots, "knot gust", an.recentGustKnots * 0.51444444444            
 #                print 'Wind Direction=\t\t\t %0.2f Degrees' % vane.readWindDirection() 
 
             print 'Wind Direction=%0.2f Degrees' % vane.averageWindDirection
@@ -445,7 +439,7 @@ def main():
                     mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.windMetersPerSecond_10minAvg, 1)
                     mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.gust_metersPerSecond_10minutesAvg, 2)
                     time.sleep(4)            
-                    mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperature, chr(223)), 1)
+                    mylcd.lcd_display_string('Temp.: %0.1f %sC     ' % (temperatureC, chr(223)), 1)
                     mylcd.lcd_display_string('Hum. : %0.1f %%     ' % humidity, 2)
         #            mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
                 except Exception as e:
