@@ -186,9 +186,9 @@ def main():
 
   temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea = readBME280All()
 
-  print "Temperature        : ", temperature, "°C"
-  print "Pressure           : ", pressure, "hPa"
+  print "Temperature        : ", temperatureC, "°C"
   print "Humidity           : ", humidity, "%"
+  print "Pressure           : ", pressureHpa, "hPa"  
   print "Pressure above sea : ", psea, "hPa"
   print "Altitude above sea : ", BME280_ALTITUDE, "m"
 

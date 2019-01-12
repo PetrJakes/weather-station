@@ -1,13 +1,9 @@
-
-#
 #
 # configuration file - contains customization for exact system
 # JCS 11/8/2013
 #
 
 # it is a good idea to copy this file into a file called "conflocal.py" and edit that instead of this one.  This file is wiped out if you update GroveWeatherPi.
-
-
 
 mailUser = "yourusename"
 mailPassword = "yourmailpassword"
@@ -19,7 +15,6 @@ fromAddress = "yourfromaddress@example.com"
 textnotifyAddress = "yourphonenumber@yourprovider"
 
 #MySQL Logging and Password Information
-
 enable_MySQL_Logging = True
 MySQL_Password = "password"
 

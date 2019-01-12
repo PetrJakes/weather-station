@@ -9,17 +9,14 @@ to:
 """
 import configparser
 config = configparser.ConfigParser()
-import subprocess
 import time
 import urllib
-import datetime
 import logging
 import logging.handlers as handlers
 import ConfigParser
 from datetime import datetime
 import hashlib
 import bme280
-
 
 config.read('weather.ini')
 
@@ -29,7 +26,6 @@ LOG_FILE = settings["LOG_FILE"]
 windFinder = config["WINDFINDER"]
 windGuru = config["WINDGURU"]
 wUnderground = config["WEATHERUNDERGROUND"]
-
 
 FORMAT = "%(asctime)s %(levelname)s %(message)s "
 logger = logging.getLogger("weatherd")
@@ -70,19 +66,17 @@ def windfinderString(Anemometer,  WindVane):
     temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
     try:
         params = urllib.urlencode({
-                                        'sender_id':WINDFINDER_ID,
-                                        'password':WINDFINDER_PASS,
-                                        'date':date,
-                                        'time':time,
-                                        'windspeed':Anemometer.windKnots_10minAvg,
-                                        'gust':Anemometer.gustKnots_10minutesAvg,
-                                        'winddir':WindVane.averageWindDirection,
-                                        'pressure':pressureHpa,
-                                        'airtemp':temperatureC,
-                                        })
+                                    'sender_id':WINDFINDER_ID,
+                                    'password':WINDFINDER_PASS,
+                                    'date':date,
+                                    'time':time,
+                                    'windspeed':Anemometer.windKnots_10minAvg,
+                                    'gust':Anemometer.gustKnots_10minutesAvg,
+                                    'winddir':WindVane.averageWindDirection,
+                                    'pressure':pressureHpa,
+                                    'airtemp':temperatureC,
+                                    })
         logger.debug(params)
-    except ConfigParser.NoSectionError:
-        logger.error("Missing config section")
     except Exception as e:
         print e
         logger.error(e)
@@ -132,23 +126,20 @@ def windguruString(Anemometer,  WindVane):
     wgSalt= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     wgHash=hashlib.md5("%s%s%s"%(wgSalt, WINDGURU_STATION_ID, WINDGURU_API_PASSWORD)).hexdigest()
     temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
-    
     try:
         params = urllib.urlencode({
-                                        'uid':WINDGURU_STATION_ID,                                        
-                                        'salt':wgSalt,                                        
-                                        'hash':wgHash,                                        
-                                        'interval':INTERVAL,            
-                                        'wind_avg':Anemometer.windKnots_10minAvg,
-                                        'windgustmph':Anemometer.gustKnots_10minutesAvg,
-                                        'wind_direction':WindVane.averageWindDirection,
-                                        'temperature':temperatureC,
-                                        'rh':humidity,
-                                        'mslp':pressureHpa,                                         
-                                        })
+                                    'uid':WINDGURU_STATION_ID,                                        
+                                    'salt':wgSalt,                                        
+                                    'hash':wgHash,                                        
+                                    'interval':INTERVAL,            
+                                    'wind_avg':Anemometer.windKnots_10minAvg,
+                                    'windgustmph':Anemometer.gustKnots_10minutesAvg,
+                                    'wind_direction':WindVane.averageWindDirection,
+                                    'temperature':temperatureC,
+                                    'rh':humidity,
+                                    'mslp':pressureHpa,                                         
+                                    })
         logger.debug(params)
-    except ConfigParser.NoSectionError:
-        logger.error("Missing config section")
     except Exception as e:
         print e
         logger.error(e)
@@ -199,25 +190,21 @@ def weatherUndergroundString(Anemometer,  WindVane):
     WEATHERUNDERGROUND_KEY = wUnderground["WEATHERUNDERGROUND_KEY"]
     timestamp= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")    
     temperatureC, temperatureF, pressureHpa, pressureInch, humidity, psea  = bme280.readBME280All()
-    
-
     try:
         params = urllib.urlencode({
-                                        'action':'updateraw',
-                                        'ID':WEATHERUNDERGROUND_ID,
-                                        'PASSWORD':WEATHERUNDERGROUND_KEY,                                        
-                                        'winddir':WindVane.instantaneousWindDirection,            
-                                        'windspeedmph':Anemometer.instaneousWindMilesPerHour,
-                                        'windgustmph':Anemometer.gustMilesPerHour_10minutesAvg,
-                                        'tempf':temperatureF,
-                                        'humidity':humidity,
-                                        'baromin':pressureInch, 
-                                        'dateutc':timestamp, 
-                                        'softwaretype':'raspberry_meteo'
-                                        })
+                                    'action':'updateraw',
+                                    'ID':WEATHERUNDERGROUND_ID,
+                                    'PASSWORD':WEATHERUNDERGROUND_KEY,                                        
+                                    'winddir':WindVane.instantaneousWindDirection,            
+                                    'windspeedmph':Anemometer.instaneousWindMilesPerHour,
+                                    'windgustmph':Anemometer.gustMilesPerHour_10minutesAvg,
+                                    'tempf':temperatureF,
+                                    'humidity':humidity,
+                                    'baromin':pressureInch, 
+                                    'dateutc':timestamp, 
+                                    'softwaretype':'raspberry_meteo'
+                                    })
         logger.debug(params)
-    except ConfigParser.NoSectionError:
-        logger.error("Missing config section")
     except Exception as e:
         print e
         logger.error(e)
@@ -225,26 +212,32 @@ def weatherUndergroundString(Anemometer,  WindVane):
 
 
 def updateWeather(uri, params):
-    timestamp= datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
     try:
-#        logger.info(params)
-#        print params
         params = "?%s" % params            
         print params
         result = urllib.urlopen(uri + params)        
         feedback = result.read().strip()
         print "FEEDBACK***************"
+        # windFinder returns html feedback
+        if "<body>\nOK\n</body>" in feedback:
+            feedback = "OK"
         print feedback
         logger.info(feedback)
-    except IOError as e:
+    except Exception as e:
         print e
         logger.error("IO Error: %s", e.strerror)
 
 if __name__ == "__main__":
-#    params = weatherUndergroundString()
-#    updateWeather(WEATHERUNDERGROUND_URI, params)
-    while 1:
-        params = windfinderString()
+    import weather
+    an=weather.Anemometer()
+    vane=weather.WindVane()
+    time.sleep(2)
+    while 1:        
+        params = weatherUndergroundString(an, vane)
+        updateWeather(WEATHERUNDERGROUND_URI, params)
+        params = windguruString(an, vane)
+        updateWeather(WINDGURU_URI, params)
+        params = windfinderString(an, vane)
         updateWeather(WINDFINDER_URI, params)
         time.sleep(60*5)
 
