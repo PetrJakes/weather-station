@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2018-07-14, 14:59:45 -->
-<!-- Copyright (C) 2018 Petr Jakeš, petr.jakes.tpc@gmail.com -->
+<!-- Saved: 2019-01-12, 23:40:55 -->
+<!-- Copyright (C) 2019 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
   <Hash>7a0e5d9fcfb94e2baf5be9e3e66fdd5000934b5e</Hash>
@@ -16,10 +16,8 @@
     <Source>I2C_LCD_driver.py</Source>
     <Source>README.md</Source>
     <Source>SDL_Adafruit_ADS1x15.py</Source>
-    <Source>SDL_Pi_WeatherRack.py</Source>
-    <Source>SDL_Pi_WeatherRackTest.py2</Source>
     <Source>bme280.py</Source>
-    <Source>config.py</Source>
+    <Source>gpsSpeedLogger.py</Source>
     <Source>meteo.py</Source>
     <Source>pigpioTest.py</Source>
     <Source>weather.ini</Source>
