@@ -19,8 +19,10 @@ print "expected voltage: %s V" % str(3.83721)
 print "measured voltage: %s V" % strCalculatedVoltage
 if float(vCoeficient) > 0.1:
     print "voltage coef = %s" % vCoeficient
-    print "change the VOLTAGE_COEF value in the weater.ini file to %s" % vCoeficient
+    print "change the VOLTAGE_COEF value in the weater.ini file to %s" % vCoeficient    
 if calculatedVoltage >= 3.63433 and calculatedVoltage < 3.93894:    
     print "measured voltage OK!"
+    print "no user acction necessary"
+    
     
     
