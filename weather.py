@@ -24,6 +24,7 @@ config.read('weather.ini')
 
 settings= config['SETTINGS']
 LCD_ADDRESS=int(settings["LCD_ADDRESS"], 16)
+VOLTAGE_COEF = float(settings["VOLTAGE_COEF"])
 
 
 class WindVane(object):
@@ -50,7 +51,7 @@ class WindVane(object):
     differ by more than 180°, the difference is decreased by adding or 
     subtracting 360° from the second sample.
     """
-    def __init__(self):
+    def __init__(self, test=False):
         ADS1115 = int(settings["ADS1115"]) # 16-bit ADC
         
         ADS1115_ADDRESS = int(settings["ADS1115_ADDRESS"], 16)
@@ -73,10 +74,11 @@ class WindVane(object):
         self._windDirectionHistoryInterval=60*10 # 10 minutes
         self.readWindDirection()
         
-        # start wind reading thread
-        self.th=Thread(target=self.startReadingWind)
-        self.th.daemon = True
-        self.th.start()
+        if test==False:
+            # start wind reading thread
+            self.th=Thread(target=self.startReadingWind)
+            self.th.daemon = True
+            self.th.start()
         
         
     def startReadingWind(self):
@@ -109,8 +111,8 @@ class WindVane(object):
         # AIN0 wired to Vcc - referential voltage        
         self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)
         vcc = self.ads1115.readADCSingleEnded(channel=0, pga=self.gain, sps=self.sps)        
-        calculatedVoltage = (vaneVoltage * (self.REFERENTIAL_VOLTAGE/vcc))
-        return calculatedVoltage/1000, vaneVoltage/1000, vcc/1000
+        calculatedVoltage = (vaneVoltage * (self.REFERENTIAL_VOLTAGE/vcc))        
+        return calculatedVoltage/1000+VOLTAGE_COEF, vaneVoltage/1000, vcc/1000
         
         
     def readWindDirection(self):

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE Project SYSTEM "Project-5.1.dtd">
 <!-- eric project file for project weather-station -->
-<!-- Saved: 2019-01-13, 00:08:34 -->
+<!-- Saved: 2019-01-13, 17:15:01 -->
 <!-- Copyright (C) 2019 Petr Jakeš, petr.jakes.tpc@gmail.com -->
 <Project version="5.1">
   <Language></Language>
@@ -22,6 +22,7 @@
     <Source>pigpioTest.py</Source>
     <Source>weather.ini</Source>
     <Source>weather.py</Source>
+    <Source>windVaneWiringTest.py</Source>
   </Sources>
   <Others>
     <Other>README.md</Other>
