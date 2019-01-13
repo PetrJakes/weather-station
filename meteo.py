@@ -57,6 +57,7 @@ logger.addHandler(handler)
 
 
 WINDFINDER_URI = windFinder["WINDFINDER_URI"]
+WF_REPORT_FREQUENCY=int(windFinder["WF_REPORT_FREQUENCY"])
 
 def windfinderString(Anemometer,  WindVane):
     WINDFINDER_ID = windFinder['WINDFINDER_ID']    
@@ -105,6 +106,7 @@ def windfinderString(Anemometer,  WindVane):
 
 
 WINDGURU_URI = windGuru["WINDGURU_URI"]
+WG_REPORT_FREQUENCY=int(windGuru["WG_REPORT_FREQUENCY"])
 
 def windguruString(Anemometer,  WindVane):
     WINDGURU_STATION_ID = windGuru["WINDGURU_STATION_ID"]
@@ -182,6 +184,7 @@ def windguruString(Anemometer,  WindVane):
 # baromin - [barometric pressure inches]
 
 WEATHERUNDERGROUND_URI = wUnderground["WEATHERUNDERGROUND_URI"]
+WU_REPORT_FREQUENCY=int(wUnderground["WU_REPORT_FREQUENCY"])
 
 def weatherUndergroundString(Anemometer,  WindVane):
     # Station ID

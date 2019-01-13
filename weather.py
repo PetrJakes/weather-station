@@ -25,6 +25,7 @@ config.read('weather.ini')
 settings= config['SETTINGS']
 LCD_ADDRESS=int(settings["LCD_ADDRESS"], 16)
 
+
 class WindVane(object):
     """ Class for reading voltage from wind wane 
     
@@ -241,9 +242,6 @@ class Anemometer(object):
         SAMPLING_FREQUENCY = int(settings["SAMPLING_FREQUENCY"])
         PIN_RPS_SAMPLER_INPUT = int(settings["PIN_RPS_SAMPLER_INPUT"])
         self.PULSES_TO_MPS_QUOTIENT = float(settings["PULSES_TO_MPS_QUOTIENT"])
-        MIN_RPS = int(settings["MIN_RPS"])
-        MAX_RPS = int(settings["MAX_RPS"])
-        
         
         if PIN_SAMPLING_PULSES_OUTPUT!=18:
             print Anemometer.warning
@@ -251,8 +249,6 @@ class Anemometer(object):
         self.gustQueue=[0]
         self.WIND_HISTORY_INTERVAL=WIND_HISTORY_INTERVAL        
         self.PULSES_PER_REVOLUTION=float(PULSES_PER_REVOLUTION)                
-        self.MIN_RPS=MIN_RPS
-        self.MAX_RPS=MAX_RPS
         self.SAMPLING_FREQUENCY = SAMPLING_FREQUENCY                        
         self._lastPulsesCount=0
         self.gustInterval = 3*SAMPLING_FREQUENCY # intended to be 3 seconds
@@ -397,6 +393,10 @@ def main(an, vane):
         mylcd = I2C_LCD_driver.lcd(ADDRESS=LCD_ADDRESS)
     except IOError as e:
         dispayConnected=False
+    startTime = time.time()
+    WG_CLOCK=startTime
+    WU_CLOCK=startTime
+    WF_CLOCK=startTime
     
     print "===================================="
     try:
@@ -431,19 +431,28 @@ def main(an, vane):
                     mylcd.lcd_display_string('Wind: %0.0f m/s   ' % an.windMetersPerSecond_10minAvg, 1)
                     mylcd.lcd_display_string('Gust: %0.0f m/s   ' % an.gust_metersPerSecond_10minutesAvg, 2)
 #                   mylcd.lcd_display_string('Wind Direction=%0.2f Degrees' % vane.averageWindDirection, 2)
-#                    time.sleep(4)
+                    time.sleep(4)
                 except Exception as e:
                     print e
             else:
                 print "LCD display not connected, sleeping 10 seconds"
                 time.sleep(10)   
-                
-            params = meteo.weatherUndergroundString(an, vane)
-            meteo.updateWeather(meteo.WEATHERUNDERGROUND_URI, params)
-            params = meteo.windguruString(an, vane)
-            meteo.updateWeather(meteo.WINDGURU_URI, params)
-            params = meteo.windfinderString(an, vane)
-            meteo.updateWeather(meteo.WINDFINDER_URI, params)
+            
+            if (time.time()- WU_CLOCK) > meteo.WU_REPORT_FREQUENCY: 
+                params = meteo.weatherUndergroundString(an, vane)
+                meteo.updateWeather(meteo.WEATHERUNDERGROUND_URI, params)
+                WU_CLOCK=time.time()
+            
+            
+            if time.time() - WG_CLOCK >meteo.WG_REPORT_FREQUENCY:
+                params = meteo.windguruString(an, vane)
+                meteo.updateWeather(meteo.WINDGURU_URI, params)
+                WG_CLOCK=time.time()
+            
+            if time.time()- WF_CLOCK > meteo.WF_REPORT_FREQUENCY:
+                params = meteo.windfinderString(an, vane)
+                meteo.updateWeather(meteo.WINDFINDER_URI, params)
+                WF_CLOCK=time.time()
             
             
     except KeyboardInterrupt: # trap a CTRL+C keyboard interrupt      
